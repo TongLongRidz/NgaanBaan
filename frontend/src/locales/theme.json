@@ -1,0 +1,30 @@
+{
+  "light": {
+    "name": "Light Mode",
+    "colors": {
+      "bg_main": "#f8fafc",
+      "bg_container": "#ffffff",
+      "bg_card": "#ffffff",
+      "bg_card_hover": "#f1f5f9",
+      "border": "#e2e8f0",
+      "border_card": "#e2e8f0",
+      "text_primary": "#0f172a",
+      "text_secondary": "#475569",
+      "text_muted": "#64748b"
+    }
+  },
+  "dark": {
+    "name": "Dark Mode",
+    "colors": {
+      "bg_main": "#0d0f17",
+      "bg_container": "#121522",
+      "bg_card": "#181c2e",
+      "bg_card_hover": "#1e233a",
+      "border": "#1e293b",
+      "border_card": "#1e293b",
+      "text_primary": "#f8fafc",
+      "text_secondary": "#cbd5e1",
+      "text_muted": "#94a3b8"
+    }
+  }
+}
