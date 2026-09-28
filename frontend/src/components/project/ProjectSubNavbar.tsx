@@ -29,7 +29,7 @@ export function ProjectSubNavbar({ activeTab, setActiveTab }: ProjectSubNavbarPr
 
   const tabs: { id: ProjectSubTab; labelKey: string; defaultLabel: string; icon: React.ReactNode }[] = [
     { id: "summary", labelKey: "project.summary", defaultLabel: "Summary", icon: <BarChart3 className="h-4 w-4" /> },
-    { id: "kanban", labelKey: "project.kanban", defaultLabel: "Kanban Board", icon: <Kanban className="h-4 w-4" /> },
+    { id: "kanban", labelKey: "project.kanban", defaultLabel: "Kanban", icon: <Kanban className="h-4 w-4" /> },
     { id: "gantt", labelKey: "project.gantt", defaultLabel: "Gantt Chart", icon: <GanttChart className="h-4 w-4" /> },
     { id: "calendar", labelKey: "project.calendar", defaultLabel: "Calendar", icon: <CalendarDays className="h-4 w-4" /> },
     { id: "activity", labelKey: "project.activity", defaultLabel: "Activity", icon: <Activity className="h-4 w-4" /> },

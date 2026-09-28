@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/hooks/useTheme";
 import { useLanguage } from "@/hooks/useLanguage";
 import {
@@ -64,13 +65,35 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 ];
 
 export function TopNavbar({ title }: TopNavbarProps) {
+  const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { language, toggleLanguage, t } = useLanguage();
   const isDark = theme === "dark";
 
-  // Default avatar image URL placeholder using user's initials (SJ - Somchai Jaidee)
-  const DEFAULT_AVATAR = "https://placehold.co/400x400?text=SJ";
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(DEFAULT_AVATAR);
+  const [userProfile, setUserProfile] = useState<{ firstname: string; lastname: string; email: string; avatar_url: string } | null>(null);
+
+  React.useEffect(() => {
+    const fetchMe = async () => {
+      const token = localStorage.getItem("user_session_id");
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`${apiUrl}/api/auth/me`, {
+          headers,
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUserProfile(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch user profile:", err);
+      }
+    };
+    fetchMe();
+  }, []);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -79,14 +102,19 @@ export function TopNavbar({ title }: TopNavbarProps) {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-  };
 
-  const handleToggleRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: !n.isRead } : n))
-    );
+  const handleSignOut = async () => {
+    localStorage.removeItem("user_session_id");
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      await fetch(`${apiUrl}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (e) {
+      console.error("Logout error:", e);
+    }
+    router.push("/login");
   };
 
   return (
@@ -114,15 +142,15 @@ export function TopNavbar({ title }: TopNavbarProps) {
               }`}
               title="User Account"
             >
-              {avatarUrl ? (
+              {userProfile?.avatar_url ? (
                 <img
-                  src={avatarUrl}
+                  src={userProfile.avatar_url}
                   alt="User Avatar"
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="h-full w-full bg-amber-500 flex items-center justify-center text-xs font-bold text-slate-950">
-                  SJ
+                <div className="h-full w-full bg-[var(--primary-btn-bg)] text-[var(--primary-btn-text)] flex items-center justify-center text-xs font-bold uppercase">
+                  {userProfile ? `${userProfile.firstname?.[0] || ""}${userProfile.lastname?.[0] || ""}` : "NB"}
                 </div>
               )}
             </button>
@@ -133,22 +161,24 @@ export function TopNavbar({ title }: TopNavbarProps) {
                 {/* Header User Card */}
                 <div className="p-4 border-b border-[var(--card-border)] flex items-center gap-3.5 bg-[var(--input-bg)]">
                   <div className="h-10 w-10 rounded-full overflow-hidden border border-[var(--card-border)] shrink-0 shadow-md">
-                    {avatarUrl ? (
+                    {userProfile?.avatar_url ? (
                       <img
-                        src={avatarUrl}
+                        src={userProfile.avatar_url}
                         alt="User Avatar"
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="h-full w-full bg-amber-500 flex items-center justify-center text-xs font-bold text-slate-950">
-                        SJ
+                      <div className="h-full w-full bg-[var(--primary-btn-bg)] text-[var(--primary-btn-text)] flex items-center justify-center text-xs font-bold uppercase">
+                        {userProfile ? `${userProfile.firstname?.[0] || ""}${userProfile.lastname?.[0] || ""}` : "NB"}
                       </div>
                     )}
                   </div>
                   <div className="overflow-hidden">
-                    <h4 className="font-bold text-xs truncate">Somchai Jaidee</h4>
+                    <h4 className="font-bold text-xs truncate">
+                      {userProfile ? `${userProfile.firstname} ${userProfile.lastname}`.trim() : "Loading Profile..."}
+                    </h4>
                     <p className={`text-[11px] truncate mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                      somchai.j@gmail.com
+                      {userProfile?.email || ""}
                     </p>
                   </div>
                 </div>
@@ -157,7 +187,7 @@ export function TopNavbar({ title }: TopNavbarProps) {
                 <div className="p-2 space-y-0.5 text-xs font-medium">
                   <button className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all ${isDark ? "hover:bg-slate-800/60 text-slate-200" : "hover:bg-slate-100 text-slate-700"}`}>
                     <User className="h-4 w-4 text-slate-400" />
-                    <span>Profile</span>
+                    <span>{t("nav.profile")}</span>
                   </button>
 
                   <Link
@@ -166,7 +196,7 @@ export function TopNavbar({ title }: TopNavbarProps) {
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all ${isDark ? "hover:bg-slate-800/60 text-slate-200" : "hover:bg-slate-100 text-slate-700"}`}
                   >
                     <Settings className="h-4 w-4 text-slate-400" />
-                    <span>Settings</span>
+                    <span>{t("nav.settings")}</span>
                   </Link>
 
                   <div className={`my-1 border-t ${isDark ? "border-slate-800/80" : "border-slate-200/80"}`}></div>
@@ -178,7 +208,7 @@ export function TopNavbar({ title }: TopNavbarProps) {
                   >
                     <span className="flex items-center gap-3">
                       {isDark ? <Moon className="h-4 w-4 text-amber-400" /> : <Sun className="h-4 w-4 text-amber-500" />}
-                      <span>Theme</span>
+                      <span>{t("nav.theme")}</span>
                     </span>
                     <span className="text-[10px] font-bold capitalize text-slate-400">{theme}</span>
                   </button>
@@ -190,20 +220,20 @@ export function TopNavbar({ title }: TopNavbarProps) {
                   >
                     <span className="flex items-center gap-3">
                       <Globe className="h-4 w-4 text-slate-400" />
-                      <span>Language</span>
+                      <span>{t("nav.language")}</span>
                     </span>
                     <span className="text-[10px] font-bold text-slate-400">{language.toUpperCase()}</span>
                   </button>
 
                   <div className={`my-1 border-t ${isDark ? "border-slate-800/80" : "border-slate-200/80"}`}></div>
 
-                  <Link
-                    href="/login"
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-red-500 hover:bg-red-500/10`}
+                  <button
+                    onClick={handleSignOut}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-red-500 hover:bg-red-500/10 text-left`}
                   >
                     <LogOut className="h-4 w-4 text-red-500" />
-                    <span>Log out</span>
-                  </Link>
+                    <span>{t("common.sign_out")}</span>
+                  </button>
                 </div>
               </div>
             )}

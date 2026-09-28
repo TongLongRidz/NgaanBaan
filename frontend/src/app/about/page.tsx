@@ -37,7 +37,7 @@ export default function AboutUsPage() {
         <div className="space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 border border-indigo-500/20 text-indigo-500">
             <LayoutDashboard className="h-3.5 w-3.5" />
-            <span>NgaanBaanBoard</span>
+            <span>NgaanBaan</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
             {t("common.about_us")}
@@ -55,8 +55,8 @@ export default function AboutUsPage() {
             <h3 className="font-bold text-sm">{language === "th" ? "เป้าหมายของเรา" : "Our Mission"}</h3>
             <p className={`text-xs leading-relaxed ${isDark ? "text-slate-400" : "text-slate-600"}`}>
               {language === "th"
-                ? "ส่งเสริมการบริหารจัดการงานย่อยในทีมด้วยบอร์ดคันบันที่เรียบง่าย ทรงพลัง และเข้าถึงได้ฟรีโดยไม่มีข้อจำกัด"
-                : "Empower team task management with a simple, powerful, and accessible Kanban board platform without limits."}
+                ? "ส่งเสริมการบริหารจัดการงานย่อยในทีมด้วยระบบคันบันที่เรียบง่าย ทรงพลัง และเข้าถึงได้ฟรีโดยไม่มีข้อจำกัด"
+                : "Empower team task management with a simple, powerful, and accessible Kanban platform without limits."}
             </p>
           </div>
 

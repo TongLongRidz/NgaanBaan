@@ -13,8 +13,8 @@ const ibmPlexSansThai = IBM_Plex_Sans_Thai({
 });
 
 export const metadata: Metadata = {
-  title: "Kanban Board - Task Management",
-  description: "Modern Kanban Task Management built with Next.js and Go",
+  title: "NgaanBaan - Task Management",
+  description: "Modern Task Management built with Next.js and Go",
 };
 
 export default function RootLayout({

@@ -88,11 +88,37 @@ export function SideNavbar() {
     });
   };
 
-  const recentProjects = [
-    { id: "a1b2c3d4-e5f6-47a8-9012-3456789abcde", title: "Sprint Workspace", href: "/projects/a1b2c3d4-e5f6-47a8-9012-3456789abcde" },
-    { id: "f47ac10b-58cc-4372-a567-0e02b2c3d4e5", title: "UI/UX Redesign", href: "/projects/f47ac10b-58cc-4372-a567-0e02b2c3d4e5" },
-    { id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d", title: "Backend Infrastructure", href: "/projects/9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" },
-  ];
+  const [recentProjects, setRecentProjects] = useState<Array<{ id: string; title: string; href: string }>>([]);
+
+  useEffect(() => {
+    const fetchRecent = async () => {
+      const token = localStorage.getItem("user_session_id");
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`${apiUrl}/api/projects`, {
+          headers,
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            const mapped = data.slice(0, 10).map((p: any) => ({
+              id: p.id,
+              title: p.title,
+              href: `/projects/${p.id}`,
+            }));
+            setRecentProjects(mapped);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch recent projects for sidebar:", err);
+      }
+    };
+    fetchRecent();
+  }, []);
 
   const myTasksSubItems = [
     { label: t("nav.assigned_to_me") || "Assigned to me", href: "/my-tasks/assigned", icon: UserCheck },
@@ -145,7 +171,7 @@ export function SideNavbar() {
             {/* Notifications */}
             <Link
               href="/notifications"
-              title={isCollapsed ? `${t("nav.notifications")} (3)` : undefined}
+              title={isCollapsed ? `${t("nav.notifications")}` : undefined}
               className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 ${
                 pathname === "/notifications"
                   ? "bg-[var(--input-bg)] text-[var(--foreground)] font-semibold"
@@ -158,11 +184,6 @@ export function SideNavbar() {
                   {t("nav.notifications") || "Notification"}
                 </span>
               </div>
-              {!isCollapsed && (
-                <span className="h-5 px-2 rounded-full bg-[var(--input-bg)] text-[var(--foreground)] text-[10px] font-semibold flex items-center justify-center border border-[var(--card-border)] shrink-0 transition-opacity duration-200">
-                  3
-                </span>
-              )}
             </Link>
           </div>
 
@@ -189,7 +210,7 @@ export function SideNavbar() {
                     {t("nav.recents")}
                   </span>
                 </Link>
-                {!isCollapsed && (
+                {!isCollapsed && recentProjects.length > 0 && (
                   <button
                     onClick={toggleRecentsOpen}
                     className="p-0.5 text-[var(--muted-foreground)] hover:text-[var(--foreground)] rounded transition-opacity duration-200"
@@ -203,10 +224,10 @@ export function SideNavbar() {
                 )}
               </div>
 
-              {/* Recent Projects Submenu */}
-              {isRecentsOpen && !isCollapsed && (
+              {/* Recent Projects Submenu (Max 10 items) */}
+              {isRecentsOpen && !isCollapsed && recentProjects.length > 0 && (
                 <div className="ml-5 pl-3 border-l border-[var(--card-border)] space-y-1 mt-1 transition-all duration-300">
-                  {recentProjects.map((project) => {
+                  {recentProjects.slice(0, 10).map((project) => {
                     const isProjectActive = pathname === project.href;
                     return (
                       <Link
@@ -230,7 +251,7 @@ export function SideNavbar() {
             {/* Starred */}
             <Link
               href="/projects/starred"
-              title={isCollapsed ? `${t("nav.starred")} (2)` : undefined}
+              title={isCollapsed ? `${t("nav.starred")}` : undefined}
               className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 ${
                 pathname === "/projects/starred"
                   ? "bg-[var(--input-bg)] text-[var(--foreground)] font-semibold"
@@ -243,17 +264,12 @@ export function SideNavbar() {
                   {t("nav.starred")}
                 </span>
               </div>
-              {!isCollapsed && (
-                <span className="h-5 px-2 rounded-full bg-[var(--input-bg)] text-[var(--foreground)] text-[10px] font-semibold flex items-center justify-center border border-[var(--card-border)] shrink-0 transition-opacity duration-200">
-                  2
-                </span>
-              )}
             </Link>
 
             {/* Shared with me */}
             <Link
               href="/projects/shared"
-              title={isCollapsed ? `${t("nav.shared_with_me")} (1)` : undefined}
+              title={isCollapsed ? `${t("nav.shared_with_me")}` : undefined}
               className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 ${
                 pathname === "/projects/shared"
                   ? "bg-[var(--input-bg)] text-[var(--foreground)] font-semibold"
@@ -266,11 +282,6 @@ export function SideNavbar() {
                   {t("nav.shared_with_me") || "Shared with me"}
                 </span>
               </div>
-              {!isCollapsed && (
-                <span className="h-5 px-2 rounded-full bg-[var(--input-bg)] text-[var(--foreground)] text-[10px] font-semibold flex items-center justify-center border border-[var(--card-border)] shrink-0 transition-opacity duration-200">
-                  1
-                </span>
-              )}
             </Link>
           </div>
 

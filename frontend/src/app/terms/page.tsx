@@ -55,8 +55,8 @@ export default function TermsOfServicePage() {
             </h2>
             <p className={`text-xs leading-relaxed ${isDark ? "text-slate-400" : "text-slate-600"}`}>
               {language === "th"
-                ? "การเข้าถึงและใช้งานระบบ NgaanBaanBoard ถือว่าคุณยอมรับข้อตกลงและเงื่อนไขการใช้งานเหล่านี้ บริการนี้จัดทำขึ้นเพื่อการบริหารจัดการงานและโครงการอย่างมีประสิทธิภาพ"
-                : "By accessing and using NgaanBaanBoard, you agree to comply with and be bound by these Terms of Service. Our platform is created to facilitate effective task management and team collaboration."}
+                ? "การเข้าถึงและใช้งานระบบ NgaanBaan ถือว่าคุณยอมรับข้อตกลงและเงื่อนไขการใช้งานเหล่านี้ บริการนี้จัดทำขึ้นเพื่อการบริหารจัดการงานและโครงการอย่างมีประสิทธิภาพ"
+                : "By accessing and using NgaanBaan, you agree to comply with and be bound by these Terms of Service. Our platform is created to facilitate effective task management and team collaboration."}
             </p>
           </section>
 

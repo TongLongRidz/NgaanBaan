@@ -18,12 +18,16 @@ backend:
 	cd backend && go run ./cmd/server
 
 db-up:
-	@echo "Starting PostgreSQL database container..."
-	docker-compose up -d postgres
+	@echo "Starting Database containers (PostgreSQL & MongoDB)..."
+	docker-compose up -d postgres mongodb
 
 db-down:
-	@echo "Stopping PostgreSQL database container..."
-	docker-compose stop postgres
+	@echo "Stopping Database containers (PostgreSQL & MongoDB)..."
+	docker-compose stop postgres mongodb
+
+db-init:
+	@echo "Initializing database schema into PostgreSQL..."
+	docker exec -i kanban_postgres psql -U kanban_user -d kanban_db < backend/init.sql
 
 docker-up:
 	@echo "Starting all full-stack services..."

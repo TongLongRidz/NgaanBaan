@@ -55,8 +55,8 @@ export default function PrivacyPolicyPage() {
             </h2>
             <p className={`text-xs leading-relaxed ${isDark ? "text-slate-400" : "text-slate-600"}`}>
               {language === "th"
-                ? "เราเก็บรวบรวมข้อมูลเฉพาะที่จำเป็นสำหรับการลงทะเบียนและการใช้งานระบบกระดานคันบัน เช่น ชื่อ อีเมล และข้อมูลการจัดการงานย่อยภายในบอร์ด เพื่อให้บริการระบบได้อย่างสมบูรณ์"
-                : "We collect information strictly required for user registration and workspace usage, such as your name, email address, and task board data to provide our Kanban service effectively."}
+                ? "เราเก็บรวบรวมข้อมูลเฉพาะที่จำเป็นสำหรับการลงทะเบียนและการใช้งานระบบกระดานคันบัน เช่น ชื่อ อีเมล และข้อมูลการจัดการงานย่อย เพื่อให้บริการระบบได้อย่างสมบูรณ์"
+                : "We collect information strictly required for user registration and workspace usage, such as your name, email address, and task data to provide our Kanban service effectively."}
             </p>
           </section>
 
@@ -79,8 +79,8 @@ export default function PrivacyPolicyPage() {
             </h2>
             <p className={`text-xs leading-relaxed ${isDark ? "text-slate-400" : "text-slate-600"}`}>
               {language === "th"
-                ? "ผู้ใช้งานมีสิทธิ์ในการเข้าถึง แก้ไข หรือลบข้อมูลส่วนบุคคลและข้อมูลบอร์ดงานของตนเองได้ตลอดเวลาผ่านทางระบบตั้งค่าบัญชี"
-                : "Users retain full ownership and rights to access, update, or delete their personal account information and board data anytime via workspace settings."}
+                ? "ผู้ใช้งานมีสิทธิ์ในการเข้าถึง แก้ไข หรือลบข้อมูลส่วนบุคคลและข้อมูลงานของตนเองได้ตลอดเวลาผ่านทางระบบตั้งค่าบัญชี"
+                : "Users retain full ownership and rights to access, update, or delete their personal account information and task data anytime via workspace settings."}
             </p>
           </section>
         </div>

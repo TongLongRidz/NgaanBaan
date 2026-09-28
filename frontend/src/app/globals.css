@@ -102,6 +102,13 @@ body {
   outline-offset: 2px;
 }
 
+input:focus,
+input:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
+
 /* Left-to-Right Underline Animation on initial load */
 @keyframes underlineExpand {
   from {
@@ -125,7 +132,8 @@ body {
   height: 3px;
   background-color: currentColor;
   border-radius: 9999px;
-  animation: underlineExpand 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: underlineExpand 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
+  width: 0%;
 }
 
 /* Smooth Fade In Animation for Language Switching */
