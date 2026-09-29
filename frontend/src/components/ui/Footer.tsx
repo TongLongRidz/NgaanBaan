@@ -1,33 +1,23 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
-import { useTheme } from "@/hooks/useTheme";
 import { useLanguage } from "@/hooks/useLanguage";
 import { LayoutDashboard, Mail } from "lucide-react";
 
 export function Footer() {
-  const { theme } = useTheme();
   const { t } = useLanguage();
-  const isDark = theme === "dark";
 
   return (
-    <footer
-      className={`border-t transition-colors duration-300 ${
-        isDark
-          ? "border-slate-800/80 bg-[#0d0f17] text-slate-400"
-          : "border-slate-200/90 bg-slate-50 text-slate-600"
-      }`}
-    >
+    <footer className="border-t border-[var(--nav-border)] bg-[var(--background)] text-[var(--muted-foreground)] transition-colors duration-300">
       <div className="max-w-6xl mx-auto px-6 pt-12 pb-8">
-        <div className={`grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b ${isDark ? "border-slate-800/60" : "border-slate-200/60"}`}>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b border-[var(--card-border)]">
           {/* Brand */}
           <div className="md:col-span-2 space-y-3">
             <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-indigo-400 shadow-md">
-                <LayoutDashboard className="h-5 w-5 text-indigo-400" />
+              <div className="h-9 w-9 rounded-xl bg-[var(--primary-btn-bg)] border border-[var(--card-border)] flex items-center justify-center shadow-md">
+                <LayoutDashboard className="h-5 w-5 text-[var(--primary-btn-text)]" />
               </div>
-              <span className={`text-lg font-bold tracking-tight ${isDark ? "text-slate-100" : "text-slate-900"}`}>
+              <span className="text-lg font-bold tracking-tight text-[var(--foreground)]">
                 {t("common.brand")}
               </span>
             </div>
@@ -35,12 +25,12 @@ export function Footer() {
 
           {/* Product Column */}
           <div className="space-y-3">
-            <h4 className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-slate-200" : "text-slate-900"}`}>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">
               {t("common.product")}
             </h4>
             <ul className="space-y-2 text-xs font-medium">
               <li>
-                <span className={`select-none ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                <span className="select-none text-[var(--muted-foreground)]">
                   {t("common.kanban_boards")}
                 </span>
               </li>
@@ -54,7 +44,7 @@ export function Footer() {
             </h4>
             <div className="flex items-center gap-2">
               <a
-                href="https://github.com"
+                href="https://github.com/TongLongRidz"
                 target="_blank"
                 rel="noreferrer"
                 className="p-2 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-[var(--card-bg)] border-[var(--card-border)] text-[var(--foreground)] hover:bg-[var(--input-bg)] shadow-xs"
@@ -66,7 +56,7 @@ export function Footer() {
                 </svg>
               </a>
               <a
-                href="mailto:support@ngaanbaanboard.com"
+                href="mailto:chitraphanukon_2548@hotmail.com"
                 className="p-2 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-[var(--card-bg)] border-[var(--card-border)] text-[var(--foreground)] hover:bg-[var(--input-bg)] shadow-xs"
                 title={t("common.email_support")}
                 aria-label="Email Support"
@@ -79,26 +69,26 @@ export function Footer() {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <div className={`flex items-center gap-1 tabular-nums ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+          <div className="flex items-center gap-1 tabular-nums text-[var(--muted-foreground)]">
             <span>© 2026 {t("common.brand")}. {t("common.all_rights_reserved")}</span>
           </div>
 
-          <div className={`flex items-center gap-6 font-medium ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+          <div className="flex items-center gap-6 font-medium text-[var(--muted-foreground)]">
             <Link
               href="/about"
-              className="hover:text-indigo-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md px-1 py-0.5"
+              className="hover:text-[var(--foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md px-1 py-0.5"
             >
               {t("common.about_us")}
             </Link>
             <Link
               href="/privacy"
-              className="hover:text-indigo-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md px-1 py-0.5"
+              className="hover:text-[var(--foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md px-1 py-0.5"
             >
               {t("common.privacy_policy")}
             </Link>
             <Link
               href="/terms"
-              className="hover:text-indigo-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md px-1 py-0.5"
+              className="hover:text-[var(--foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md px-1 py-0.5"
             >
               {t("common.terms_of_service")}
             </Link>
@@ -108,3 +98,4 @@ export function Footer() {
     </footer>
   );
 }
+

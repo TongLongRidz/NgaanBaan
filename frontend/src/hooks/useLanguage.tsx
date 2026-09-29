@@ -23,15 +23,16 @@ const translationsMap: Record<Language, any> = {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>(() => {
-    if (typeof window !== "undefined") {
-      const savedLang = localStorage.getItem("language") as Language | null;
-      if (savedLang === "en" || savedLang === "th") {
-        return savedLang;
-      }
+  const [mounted, setMounted] = useState(false);
+  const [language, setLanguageState] = useState<Language>("th");
+
+  useEffect(() => {
+    setMounted(true);
+    const savedLang = localStorage.getItem("language") as Language | null;
+    if (savedLang === "en" || savedLang === "th") {
+      setLanguageState(savedLang);
     }
-    return "th";
-  });
+  }, []);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);

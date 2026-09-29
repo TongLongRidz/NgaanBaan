@@ -18,24 +18,20 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 function InternalThemeProvider({ children }: { children: React.ReactNode }) {
   const { theme: nextTheme, setTheme: setNextTheme, resolvedTheme } = useNextTheme();
-
-  const getInitialTheme = (): Theme => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("theme");
-      if (saved === "dark" || saved === "light") return saved;
-      if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
-    }
-    return "light";
-  };
-
-  const [currentTheme, setCurrentThemeState] = useState<Theme>(getInitialTheme);
+  const [mounted, setMounted] = useState(false);
+  const [currentTheme, setCurrentThemeState] = useState<Theme>("light");
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     const active = (resolvedTheme || nextTheme) as Theme;
     if (active && (active === "dark" || active === "light")) {
       setCurrentThemeState(active);
     }
-  }, [nextTheme, resolvedTheme]);
+  }, [nextTheme, resolvedTheme, mounted]);
 
   const setTheme = (newTheme: Theme) => {
     setNextTheme(newTheme);

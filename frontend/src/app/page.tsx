@@ -30,13 +30,17 @@ export default function MainPage() {
     });
   }, []);
 
+  useEffect(() => {
+    AOS.refresh();
+  }, [language]);
+
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-[var(--background)] text-[var(--foreground)]">
+    <div key={language} className="min-h-screen flex flex-col font-sans bg-[var(--background)] text-[var(--foreground)]">
       {/* Navigation Bar */}
       <LandingNavbar />
 
-      {/* Main Content Area with Language Fade Effect */}
-      <div key={language} className="animate-fade-in flex flex-col flex-1">
+      {/* Main Content Area */}
+      <div className="animate-fade-in flex flex-col flex-1">
         {/* Hero Section */}
         <header className="max-w-5xl w-full mx-auto px-6 min-h-[calc(75vh-64px)] text-center flex flex-col items-center justify-center py-12">
           {/* Title Lines with Staggered Fade Delays */}
