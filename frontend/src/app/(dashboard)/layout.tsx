@@ -14,22 +14,13 @@ export default function DashboardLayout({
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem("user_session_id");
-
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-        const headers: Record<string, string> = {};
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-
         const res = await fetch(`${apiUrl}/api/auth/me`, {
-          headers,
           credentials: "include",
         });
 
         if (!res.ok) {
-          localStorage.removeItem("user_session_id");
           router.replace("/login");
           return;
         }

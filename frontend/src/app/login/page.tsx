@@ -26,6 +26,7 @@ import {
   KeyRound
 } from "lucide-react";
 import { EmailVerificationCard } from "@/components/ui/email/VerificationCard";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
 function UnifiedAuthForm() {
   const router = useRouter();
@@ -42,7 +43,8 @@ function UnifiedAuthForm() {
   }, []);
 
   // Form states
-  const [mode, setMode] = useState<"login" | "register" | "verify">(initialMode);
+  const [mode, setMode] = useState<"login" | "register" | "verify" | "forgot">(initialMode);
+  const [forgotEmail, setForgotEmail] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -56,8 +58,12 @@ function UnifiedAuthForm() {
   const [otpCode, setOtpCode] = useState("");
   const [verificationToken, setVerificationToken] = useState("");
   const [devOtpCode, setDevOtpCode] = useState("");
-  const [resendTimer, setResendTimer] = useState(60);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [forgotCooldown, setForgotCooldown] = useState(0);
+  const [hasSentForgotOnce, setHasSentForgotOnce] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [accessToken, setAccessToken] = useState("");
+
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -91,7 +97,7 @@ function UnifiedAuthForm() {
       });
       router.push("/projects/recent");
     } catch (err: any) {
-      setErrorKey({ key: "auth.invalid_credentials" });
+      setErrorMsg(err.message || "Verification failed");
     } finally {
       setLoading(false);
     }
@@ -166,18 +172,21 @@ function UnifiedAuthForm() {
     return err;
   };
 
-  const switchMode = (newMode: "login" | "register") => {
+  const switchMode = (newMode: "login" | "register" | "forgot") => {
     setMode(newMode);
     setFieldErrors({});
     setTouched({});
     setErrorMsg("");
     setSuccessMsg("");
+    setErrorKey(null);
+    setSuccessKey(null);
     setLoginEmail("");
     setLoginPassword("");
     setFirstname("");
     setLastname("");
     setRegEmail("");
     setRegPassword("");
+    setForgotEmail("");
   };
 
   const handleBlur = (name: string, value: string) => {
@@ -229,6 +238,15 @@ function UnifiedAuthForm() {
     return () => clearInterval(interval);
   }, [resendTimer]);
 
+  useEffect(() => {
+    if (forgotCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setForgotCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [forgotCooldown]);
+
+
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (lockoutTimer > 0) return;
@@ -271,11 +289,10 @@ function UnifiedAuthForm() {
         return;
       }
 
-      if (data.token) {
-        localStorage.setItem("user_session_id", data.token);
-      }
+
 
       if (data.user && !data.user.is_email_verified) {
+        setAccessToken(data.access_token || "");
         setDevOtpCode(data.otp_code || "");
         setVerificationToken(data.verification_token || "");
         setMode("verify");
@@ -335,13 +352,20 @@ function UnifiedAuthForm() {
         return;
       }
 
-      if (data.token) {
-        localStorage.setItem("user_session_id", data.token);
-      }
 
+
+      setAccessToken(data.access_token || "");
       setDevOtpCode(data.otp_code || "");
       setVerificationToken(data.verification_token || "");
       setLoginEmail(regEmail);
+
+      await showAlert({
+        title: t("auth.register_success"),
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
       setMode("verify");
     } catch (err: any) {
       setErrorKey({ key: "auth.invalid_credentials" });
@@ -358,12 +382,9 @@ function UnifiedAuthForm() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const token = localStorage.getItem("user_session_id");
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
 
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
       const res = await fetch(`${apiUrl}/api/auth/verify-otp`, {
         method: "POST",
         headers,
@@ -396,10 +417,9 @@ function UnifiedAuthForm() {
     setLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const token = localStorage.getItem("user_session_id");
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
 
+      const headers: Record<string, string> = {};
+      if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
       const res = await fetch(`${apiUrl}/api/auth/resend-otp`, {
         method: "POST",
         headers,
@@ -419,22 +439,69 @@ function UnifiedAuthForm() {
     }
   };
 
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (forgotCooldown > 0) return;
+    if (!forgotEmail.trim()) {
+      validateField("loginEmail", forgotEmail);
+      return;
+    }
+
+    setLoading(true);
+    setErrorKey(null);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const res = await fetch(`${apiUrl}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail.trim() }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        await showAlert({
+          title: "คำขอถูกระงับชั่วคราว",
+          text: data.error || "ขอรีเซ็ตรหัสผ่านเกินโควต้า",
+          icon: "warning",
+          confirmButtonText: "ตกลง",
+        });
+        return;
+      }
+
+      setHasSentForgotOnce(true);
+      setForgotCooldown(60); // 60s cooldown
+
+      await showAlert({
+        title: "ส่งลิงก์เรียบร้อยแล้ว",
+        text: data.message || "หากอีเมลนี้อยู่ในระบบ เราได้ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลของคุณเรียบร้อยแล้ว (สามารถส่งซ้ำได้ในอีก 60 วินาที)",
+        icon: "success",
+        confirmButtonText: "ตกลง",
+      });
+    } catch (err: any) {
+      setErrorKey({ key: "auth.invalid_credentials" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   return (
     <div
-      className={`min-h-screen flex flex-col justify-center items-center px-4 py-12 transition-colors duration-300 ${isDark ? "bg-[#0d0f17] text-slate-100" : "bg-slate-50 text-slate-900"
+      className={`min-h-screen flex flex-col justify-center items-center px-4 py-12 ${isDark ? "bg-[#0d0f17] text-slate-100" : "bg-slate-50 text-slate-900"
         }`}
     >
       {/* Absolute Top Left Back Button */}
       <div className="absolute top-6 left-6">
         <Link
           href="/"
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all ${isDark
+          className={`h-9 inline-flex items-center gap-2 px-3.5 rounded-xl border text-xs font-semibold transition-all ${isDark
               ? "bg-slate-900/80 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800"
               : "bg-white border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 shadow-sm"
             }`}
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>{language === "th" ? "กลับสู่หน้าหลัก" : "Back to Home"}</span>
+          <span>{t("common.back_home") !== "common.back_home" ? t("common.back_home") : (language === "th" ? "กลับสู่หน้าหลัก" : "Back to Home")}</span>
         </Link>
       </div>
 
@@ -444,9 +511,9 @@ function UnifiedAuthForm() {
           <>
             <button
               onClick={toggleLanguage}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${isDark
-                  ? "bg-slate-900 text-indigo-400 border-slate-800 hover:bg-slate-800"
-                  : "bg-white text-indigo-600 border-slate-200 hover:bg-slate-100 shadow-sm"
+              className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-xl border text-xs font-semibold transition-all ${isDark
+                  ? "bg-slate-900/80 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800"
+                  : "bg-white border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 shadow-sm"
                 }`}
               title="Switch Language"
             >
@@ -454,46 +521,55 @@ function UnifiedAuthForm() {
               <span>{language.toUpperCase()}</span>
             </button>
 
-            <button
-              onClick={toggleTheme}
-              className={`p-2.5 rounded-xl border transition-all ${isDark
+            <AnimatedThemeToggler
+              theme={theme}
+              onThemeChange={() => toggleTheme()}
+              variant="circle"
+              duration={500}
+              className={`w-9 h-9 inline-flex items-center justify-center rounded-xl border transition-all ${isDark
                   ? "bg-slate-900 text-amber-400 border-slate-800 hover:bg-slate-800"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
                 }`}
               title={`Switch to ${isDark ? "Light" : "Dark"} Mode`}
-            >
-              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
+            />
           </>
         )}
       </div>
 
       <div className="w-full max-w-md">
-        {/* Brand Header */}
-        <div className="text-center mb-6">
-          <Link href="/" className="inline-flex items-center justify-center gap-3 mb-3 group">
-            <div className="h-12 w-12 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center shadow-xl transition-transform group-hover:scale-105">
-              <LayoutDashboard className="h-6 w-6 text-slate-100" />
-            </div>
-          </Link>
-          <h1 className={`text-2xl font-extrabold tracking-tight ${isDark ? "text-slate-50" : "text-slate-900"}`}>
-            {mode === "verify"
-              ? t("auth.verify_email_title")
-              : mode === "login"
-                ? t("auth.welcome_back")
-                : t("auth.create_account")}
-          </h1>
-          <p className={`text-xs mt-1.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            {mode === "verify"
-              ? t("auth.verify_email_subtitle").replace("{email}", loginEmail || regEmail || "อีเมลของคุณ")
-              : mode === "login"
-                ? t("auth.login_subtitle")
-                : t("auth.register_subtitle")}
-          </p>
-        </div>
-
-        {/* Tab Switcher with Sliding Pill Animation (Only shown when not verifying) */}
+        {/* Brand Header (Hidden when mode === 'verify' to prevent duplicate containers) */}
         {mode !== "verify" && (
+          <div className="text-center mb-6">
+            <Link href="/" className="inline-flex items-center justify-center gap-3 mb-3 group">
+              <div className="h-12 w-12 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center shadow-xl transition-transform group-hover:scale-105">
+                <LayoutDashboard className="h-6 w-6 text-slate-100" />
+              </div>
+            </Link>
+            <h1
+              key={mode}
+              className={`text-2xl font-extrabold tracking-tight animate-title-slide ${isDark ? "text-slate-50" : "text-slate-900"}`}
+            >
+              {mode === "login"
+                ? t("auth.welcome_back")
+                : mode === "forgot"
+                  ? "ลืมรหัสผ่านใช่ไหม?"
+                  : t("auth.create_account")}
+            </h1>
+            <p
+              key={`${mode}-sub`}
+              className={`text-xs mt-1.5 animate-title-slide ${isDark ? "text-slate-400" : "text-slate-500"}`}
+            >
+              {mode === "login"
+                ? t("auth.login_subtitle")
+                : mode === "forgot"
+                  ? "ระบุอีเมลของคุณเพื่อรับลิงก์รีเซ็ตรหัสผ่าน"
+                  : t("auth.register_subtitle")}
+            </p>
+          </div>
+        )}
+
+        {/* Tab Switcher with Sliding Pill Animation (Only shown when not verifying or forgot) */}
+        {mode !== "verify" && mode !== "forgot" && (
           <div className={`relative p-1 rounded-2xl border flex mb-6 transition-colors duration-300 ${isDark ? "bg-slate-900/80 border-slate-800" : "bg-slate-200/60 border-slate-200"}`}>
             {/* Animated Sliding Background Indicator */}
             <div
@@ -535,11 +611,13 @@ function UnifiedAuthForm() {
 
         {/* Auth Card */}
         <div
-          className={`p-8 rounded-2xl border shadow-xl transition-all duration-300 ${isDark
+          className={`p-8 rounded-2xl border shadow-xl transition-all duration-300 ${
+            isDark
               ? "bg-[#131625] border-slate-800/90 shadow-slate-950/20"
               : "bg-white border-slate-200/80 shadow-slate-200/50"
-            }`}
+          }`}
         >
+
           {mode !== "verify" && (
             <>
               {/* Google OAuth Login Button */}
@@ -653,9 +731,13 @@ function UnifiedAuthForm() {
                   )}
                 </div>
                 <div className="flex justify-end mt-1.5">
-                  <a href="#" className="text-[11px] font-medium text-blue-400 hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => switchMode("forgot")}
+                    className="text-[11px] font-medium text-blue-400 hover:underline cursor-pointer"
+                  >
                     {t("auth.forgot_password")}
-                  </a>
+                  </button>
                 </div>
               </div>
 
@@ -688,6 +770,52 @@ function UnifiedAuthForm() {
                 <ArrowRight className="h-4 w-4" />
               </button>
             </form>
+          ) : mode === "forgot" ? (
+            <form onSubmit={handleForgotPasswordSubmit} className="space-y-5" noValidate>
+              <div>
+                <label className={`block text-xs font-semibold mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
+                  {t("auth.email_address")}
+                </label>
+                <div className="relative">
+                  <Mail className={`h-4 w-4 absolute left-3 top-3 ${fieldErrors.loginEmail ? "text-rose-500" : isDark ? "text-slate-500" : "text-slate-400"}`} />
+                  <input
+                    type="text"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder={t("auth.email_placeholder")}
+                    className={`w-full rounded-xl text-xs pl-9 pr-4 py-2.5 outline-none transition-colors ${
+                      isDark
+                        ? "bg-slate-900/80 border border-slate-800 focus:border-slate-600 text-slate-200"
+                        : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || !forgotEmail.trim() || forgotCooldown > 0}
+                className={`w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl border shadow-md transition-all mt-4 ${
+                  forgotCooldown > 0
+                    ? "bg-slate-700 text-slate-300 border-slate-600 cursor-not-allowed"
+                    : isDark
+                      ? "bg-slate-800 hover:bg-slate-700/80 text-white border-slate-700"
+                      : "bg-slate-900 hover:bg-slate-800 text-white border-slate-900"
+                } disabled:opacity-50 cursor-pointer`}
+              >
+                <span>
+                  {loading
+                    ? "กำลังส่งลิงก์..."
+                    : forgotCooldown > 0
+                      ? `ส่งอีกครั้งใน (${forgotCooldown}s)`
+                      : hasSentForgotOnce
+                        ? "ส่งลิงก์รีเซ็ตรหัสผ่านอีกครั้ง"
+                        : "ส่งลิงก์รีเซ็ตรหัสผ่าน"}
+                </span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+
+            </form>
           ) : mode === "verify" ? (
             <EmailVerificationCard
               email={loginEmail || regEmail}
@@ -699,10 +827,11 @@ function UnifiedAuthForm() {
               loading={loading}
               onVerifyOtp={handleVerifyOTP}
               onResendOtp={handleResendOTP}
+              onBackToLogin={() => switchMode("login")}
             />
           ) : (
             <form onSubmit={handleRegisterSubmit} className="space-y-6" noValidate>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 animate-smart-appear overflow-hidden">
                 <div>
                   <label className={`block text-xs font-semibold mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                     {t("auth.firstname")}
@@ -878,11 +1007,11 @@ function UnifiedAuthForm() {
 
           {/* Toggle Helper Footer Link */}
           <p className={`text-center text-xs mt-6 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-            {mode === "verify" ? (
+            {mode === "verify" || mode === "forgot" ? (
               <button
                 type="button"
                 onClick={() => switchMode("login")}
-                className="font-semibold text-blue-400 hover:underline"
+                className="font-semibold text-blue-400 hover:underline cursor-pointer"
               >
                 ← {language === "th" ? "กลับไปหน้าเข้าสู่ระบบ" : "Back to Sign In"}
               </button>

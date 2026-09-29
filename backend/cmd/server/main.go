@@ -37,9 +37,12 @@ func main() {
 	// Public Auth Routes
 	r.POST("/api/auth/register", handler.Register)
 	r.POST("/api/auth/login", handler.Login)
+	r.POST("/api/auth/refresh", handler.RefreshToken)
 	r.POST("/api/auth/logout", handler.Logout)
 	r.GET("/api/auth/verify-link", handler.VerifyTokenLink)
 	r.POST("/api/auth/email-test", handler.SendTestEmail)
+	r.POST("/api/auth/forgot-password", handler.RequestPasswordReset)
+	r.POST("/api/auth/reset-password", handler.ConfirmPasswordReset)
 
 	// Protected API Routes (Session Token required)
 	api := r.Group("/api")

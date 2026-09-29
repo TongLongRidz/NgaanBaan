@@ -16,13 +16,14 @@ import (
 var (
 	MongoClient *mongo.Client
 	MongoCollection *mongo.Collection
+	VerificationAuditCollection *mongo.Collection
 )
 
 func InitMongo() {
 	mongoURI := os.Getenv("MONGO_URI")
 	dbName := os.Getenv("MONGO_DB")
 	if dbName == "" {
-		dbName = "kanban_logs"
+		dbName = "ngaanbaan_logs"
 	}
 
 	// Host for running outside docker compose pointing to localhost
@@ -36,11 +37,11 @@ func InitMongo() {
 	}
 	user := os.Getenv("MONGO_INITDB_ROOT_USERNAME")
 	if user == "" {
-		user = "kanban_mongo_user"
+		user = "ngaanbaan_mongo_user"
 	}
 	pass := os.Getenv("MONGO_INITDB_ROOT_PASSWORD")
 	if pass == "" {
-		pass = "kanban_mongo_password"
+		pass = "ngaanbaan_mongo_password"
 	}
 
 	mongoURI = fmt.Sprintf("mongodb://%s:%s@%s:%s/%s?authSource=admin", user, pass, host, port, dbName)
@@ -62,6 +63,106 @@ func InitMongo() {
 
 	MongoClient = client
 	MongoCollection = client.Database(dbName).Collection("login_audit_logs")
+	VerificationAuditCollection = client.Database(dbName).Collection("email_verification_logs")
+	PasswordResetAuditCollection = client.Database(dbName).Collection("password_reset_logs")
+}
+
+var (
+	PasswordResetAuditCollection *mongo.Collection
+)
+
+// Password Reset Rate Limiter (Max 3 requests per 1 hour per Account & per IP)
+type ResetLimitTracker struct {
+	Count     int
+	FirstSeen time.Time
+}
+
+var (
+	resetMutex       sync.Mutex
+	accountResetMap = make(map[string]*ResetLimitTracker) // Key: email
+	ipResetMap      = make(map[string]*ResetLimitTracker) // Key: IP
+)
+
+// CheckAndRecordResetRateLimit enforces 3 password reset requests per hour limit on email and IP
+func CheckAndRecordResetRateLimit(email, ip string) error {
+	resetMutex.Lock()
+	defer resetMutex.Unlock()
+
+	now := time.Now()
+
+	// Check Account Limit
+	accTracker, exists := accountResetMap[email]
+	if !exists || now.Sub(accTracker.FirstSeen) >= 1*time.Hour {
+		accountResetMap[email] = &ResetLimitTracker{Count: 1, FirstSeen: now}
+	} else {
+		if accTracker.Count >= 3 {
+			remainingMin := int(time.Until(accTracker.FirstSeen.Add(1*time.Hour)).Minutes()) + 1
+			return fmt.Errorf("ขอรีเซ็ตรหัสผ่านเกินโควต้า 3 ครั้ง/ชั่วโมง กรุณาลองใหม่ในอีก %d นาที", remainingMin)
+		}
+		accTracker.Count++
+	}
+
+	// Check IP Limit
+	ipTracker, exists := ipResetMap[ip]
+	if !exists || now.Sub(ipTracker.FirstSeen) >= 1*time.Hour {
+		ipResetMap[ip] = &ResetLimitTracker{Count: 1, FirstSeen: now}
+	} else {
+		if ipTracker.Count >= 3 {
+			remainingMin := int(time.Until(ipTracker.FirstSeen.Add(1*time.Hour)).Minutes()) + 1
+			return fmt.Errorf("IP ของคุณขอรีเซ็ตรหัสผ่านเกินโควต้า 3 ครั้ง/ชั่วโมง กรุณาลองใหม่ในอีก %d นาที", remainingMin)
+		}
+		ipTracker.Count++
+	}
+
+	return nil
+}
+
+// RecordPasswordResetLog records reset activities to MongoDB
+func RecordPasswordResetLog(userID, email, action, ipAddress, userAgent string) {
+	if PasswordResetAuditCollection == nil {
+		return
+	}
+
+	logEntry := model.PasswordResetAuditLog{
+		UserID:    userID,
+		Email:     email,
+		Action:    action,
+		IPAddress: ipAddress,
+		UserAgent: userAgent,
+		Timestamp: time.Now(),
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := PasswordResetAuditCollection.InsertOne(ctx, logEntry)
+	if err != nil {
+		log.Printf("Failed to insert MongoDB password reset audit log: %v", err)
+	}
+}
+
+// RecordEmailVerificationLog stores MongoDB log when a user successfully verifies their email via OTP or link
+func RecordEmailVerificationLog(userID, email, method, ipAddress, userAgent string) {
+	if VerificationAuditCollection == nil {
+		return
+	}
+
+	logEntry := model.EmailVerificationAuditLog{
+		UserID:     userID,
+		Email:      email,
+		Method:     method,
+		IPAddress:  ipAddress,
+		UserAgent:  userAgent,
+		VerifiedAt: time.Now(),
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := VerificationAuditCollection.InsertOne(ctx, logEntry)
+	if err != nil {
+		log.Printf("Failed to insert MongoDB email verification audit log: %v", err)
+	}
 }
 
 // In-Memory Rate Limiter & Counter (Redis-like behavior)

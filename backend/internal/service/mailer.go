@@ -25,7 +25,7 @@ func BuildCustomEmailHTML(title, content, otpCode, verifyLink string) string {
 		title = "ยืนยันที่อยู่อีเมลของคุณ"
 	}
 	if content == "" {
-		content = "ขอบคุณสำหรับการสมัครใช้งาน NgaanBaan กรุณาใช้รหัส OTP ด้านล่างนี้เพื่อยืนยันตัวตนของคุณ:"
+		content = "ขอบคุณสำหรับการสมัครใช้งาน NgaanBaan (งานบาน) กรุณาใช้รหัส OTP ด้านล่างนี้เพื่อยืนยันตัวตนของคุณ:"
 	}
 
 	otpSection := ""
@@ -72,7 +72,7 @@ func BuildCustomEmailHTML(title, content, otpCode, verifyLink string) string {
                     <tr>
                         <td style="background-color: #0f172a; padding: 28px 32px; text-align: center;">
                             <div style="font-size: 18px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">
-                                NgaanBaan <span style="font-size: 12px; font-weight: 400; color: #94a3b8; margin-left: 4px;">| Workspace Management</span>
+                                NgaanBaan <span style="font-size: 18px; font-weight: 700; color: #ffffff; margin-left: 4px;">| งานบาน</span>
                             </div>
                         </td>
                     </tr>
@@ -100,7 +100,7 @@ func BuildCustomEmailHTML(title, content, otpCode, verifyLink string) string {
                                 หากคุณไม่ได้เป็นผู้ร้องขออีเมลนี้ กรุณาข้ามอีเมลนี้ไป
                             </p>
                             <p style="font-size: 11px; font-weight: 600; color: #94a3b8; margin: 0;">
-                                NgaanBaan Team &bull; Modern Workspace Management
+                                NgaanBaan Team &bull; Project Management
                             </p>
                         </td>
                     </tr>
@@ -143,9 +143,23 @@ func SendVerificationEmail(recipientEmail, otpCode, verificationToken string) er
 	verifyLink := fmt.Sprintf("%s/login?token=%s", appURL, verificationToken)
 	subject := "รหัสยืนยันตัวตนอีเมลของคุณ - NgaanBaan"
 	title := "ยืนยันที่อยู่อีเมลของคุณ"
-	content := "ขอบคุณสำหรับการสมัครใช้งาน NgaanBaan กรุณาใช้รหัส OTP ด้านล่างนี้เพื่อยืนยันตัวตนของคุณ:"
+	content := "ขอบคุณสำหรับการสมัครใช้งาน NgaanBaan (งานบาน) กรุณาใช้รหัส OTP ด้านล่างนี้เพื่อยืนยันตัวตนของคุณ:"
 
 	return SendCustomEmail(recipientEmail, subject, title, content, otpCode, verifyLink)
+}
+
+// SendPasswordResetEmail sends password reset link email
+func SendPasswordResetEmail(recipientEmail, resetToken string) error {
+	appURL := os.Getenv("APP_URL")
+	if appURL == "" {
+		appURL = "http://localhost:3000"
+	}
+	resetLink := fmt.Sprintf("%s/reset-password?token=%s", appURL, resetToken)
+	subject := "คำขอรีเซ็ตรหัสผ่านของคุณ - NgaanBaan"
+	title := "รีเซ็ตรหัสผ่านของคุณ"
+	content := "เราได้รับคำขอรีเซ็ตรหัสผ่านสำหรับบัญชีของคุณ กรุณาคลิกปุ่มด้านล่างเพื่อตั้งรหัสผ่านใหม่ (ลิงก์นี้มีอายุ 1 ชั่วโมง):"
+
+	return SendCustomEmail(recipientEmail, subject, title, content, "", resetLink)
 }
 
 func sendViaSMTPCustom(recipientEmail, subject, htmlBody, smtpUser, smtpPass string) error {
@@ -161,10 +175,15 @@ func sendViaSMTPCustom(recipientEmail, subject, htmlBody, smtpUser, smtpPass str
 		smtpPort = "587"
 	}
 
+	fromName := os.Getenv("SMTP_FROM_NAME")
+	if fromName == "" {
+		fromName = "NgaanBaan"
+	}
+	headerFrom := fmt.Sprintf("From: %s <%s>\n", fromName, cleanUser)
 	headerSubject := fmt.Sprintf("Subject: %s\n", subject)
 	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
 
-	msg := []byte(headerSubject + mime + htmlBody)
+	msg := []byte(headerFrom + headerSubject + mime + htmlBody)
 	auth := smtp.PlainAuth("", cleanUser, cleanPass, smtpHost)
 
 	addr := fmt.Sprintf("%s:%s", smtpHost, smtpPort)

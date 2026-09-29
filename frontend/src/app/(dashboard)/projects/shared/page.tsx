@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/hooks/useLanguage";
 import { TopNavbar } from "@/components/ui/TopNavbar";
-import { Plus, Users, Grid } from "lucide-react";
+import { EmptyProjectState } from "@/components/ui/EmptyProjectState";
+import { Users, Grid } from "lucide-react";
 
 interface Project {
   id: string;
@@ -32,20 +33,29 @@ export default function SharedProjectsPage() {
     <>
       <TopNavbar />
 
-      <main className="flex-1 p-6 md:p-8">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                <Users className="h-4 w-4" />
-              </div>
-              <div>
-                <h2 className="font-bold text-xl leading-none text-[var(--foreground)]">
-                  {t("nav.shared_with_me") || "Shared with me"}
-                </h2>
-              </div>
+      <main className="flex-1 p-6 md:p-8 flex flex-col min-h-[calc(100vh-64px)]">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+              <Users className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="font-bold text-xl leading-none text-[var(--foreground)]">
+                {t("nav.shared_with_me") || "Shared with me"}
+              </h2>
             </div>
           </div>
+        </div>
 
+        {projects.length === 0 && (
+          <EmptyProjectState
+            title={t("empty.no_shared_projects")}
+            description={t("empty.no_shared_desc")}
+            showCreateButton={false}
+          />
+        )}
+
+        {projects.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {projects.map((project) => (
               <Link
@@ -84,7 +94,8 @@ export default function SharedProjectsPage() {
               </Link>
             ))}
           </div>
-        </main>
+        )}
+      </main>
     </>
   );
 }

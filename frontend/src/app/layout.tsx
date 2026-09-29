@@ -13,8 +13,8 @@ const ibmPlexSansThai = IBM_Plex_Sans_Thai({
 });
 
 export const metadata: Metadata = {
-  title: "NgaanBaan - Task Management",
-  description: "Modern Task Management built with Next.js and Go",
+  title: "NgaanBaan",
+  description: "",
 };
 
 export default function RootLayout({
@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${ibmPlexSansThai.variable} ${ibmPlexSansThai.className}`}>
         <ThemeProvider>
           <LanguageProvider>

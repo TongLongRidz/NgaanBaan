@@ -2,10 +2,12 @@ package repository
 
 import (
 	"backend/internal/model"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -107,8 +109,14 @@ func CreateVerificationCode(userID string) (string, string, error) {
 	// Delete previous verification codes for this user
 	_, _ = DB.Exec("DELETE FROM email_verifications WHERE user_id = $1", userID)
 
-	otp := fmt.Sprintf("%06d", time.Now().UnixNano()%1000000)
-	tokenRaw := fmt.Sprintf("verify-%s-%d", userID, time.Now().UnixNano())
+	// Generate cryptographically secure 6-digit OTP
+	randNum, _ := rand.Int(rand.Reader, big.NewInt(1000000))
+	otp := fmt.Sprintf("%06d", randNum.Int64())
+
+	// Generate cryptographically secure verification token
+	randomBytes := make([]byte, 32)
+	_, _ = rand.Read(randomBytes)
+	tokenRaw := fmt.Sprintf("verify-%s-%s", userID, hex.EncodeToString(randomBytes))
 	hash := sha256.Sum256([]byte(tokenRaw))
 	token := hex.EncodeToString(hash[:])
 	expiresAt := time.Now().Add(15 * time.Minute)
@@ -148,6 +156,24 @@ func VerifyOTPCode(userID, otp string) error {
 	return nil
 }
 
+// GetUserByID retrieves a user model by ID
+func GetUserByID(id string) (*model.User, error) {
+	var user model.User
+	query := `
+		SELECT id, email, firstname, COALESCE(lastname, ''), COALESCE(avatar_url, ''), status, is_email_verified, last_active, created_at
+		FROM users
+		WHERE id = $1
+	`
+	err := DB.QueryRow(query, id).Scan(
+		&user.ID, &user.Email, &user.Firstname, &user.Lastname, &user.AvatarURL, &user.Status, &user.IsEmailVerified, &user.LastActive, &user.CreatedAt,
+	)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	return &user, nil
+}
+
 // VerifyToken verifies link token directly
 func VerifyToken(token string) (*model.User, error) {
 	var userID string
@@ -181,4 +207,70 @@ func VerifyToken(token string) (*model.User, error) {
 // ResendVerificationCode generates new OTP and token for user
 func ResendVerificationCode(userID string) (string, string, error) {
 	return CreateVerificationCode(userID)
+}
+
+// GetUserByEmail retrieves user by email address
+func GetUserByEmail(email string) (*model.User, error) {
+	var user model.User
+	query := `
+		SELECT id, email, firstname, COALESCE(lastname, ''), COALESCE(avatar_url, ''), status, is_email_verified, last_active, created_at
+		FROM users
+		WHERE email = $1
+	`
+	err := DB.QueryRow(query, email).Scan(
+		&user.ID, &user.Email, &user.Firstname, &user.Lastname, &user.AvatarURL, &user.Status, &user.IsEmailVerified, &user.LastActive, &user.CreatedAt,
+	)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+	return &user, nil
+}
+
+// CreatePasswordResetToken generates a secure token for password reset (1 hour expiry)
+func CreatePasswordResetToken(userID string) (string, error) {
+	_, _ = DB.Exec("DELETE FROM password_reset_tokens WHERE user_id = $1", userID)
+
+	tokenRaw := fmt.Sprintf("reset-%s-%d", userID, time.Now().UnixNano())
+	hash := sha256.Sum256([]byte(tokenRaw))
+	token := hex.EncodeToString(hash[:])
+	expiresAt := time.Now().Add(1 * time.Hour)
+
+	query := `
+		INSERT INTO password_reset_tokens (user_id, token, expires_at)
+		VALUES ($1, $2, $3)
+	`
+	_, err := DB.Exec(query, userID, token, expiresAt)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+// ResetUserPassword verifies token and updates user password
+func ResetUserPassword(token, newPassword string) (*model.User, error) {
+	var userID string
+	query := `
+		SELECT user_id FROM password_reset_tokens
+		WHERE token = $1 AND expires_at > NOW()
+	`
+	err := DB.QueryRow(query, token).Scan(&userID)
+	if err != nil {
+		return nil, errors.New("โทเค็นรีเซ็ตรหัสผ่านไม่ถูกต้อง หรือหมดอายุแล้ว")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, errors.New("failed to hash password")
+	}
+
+	_, err = DB.Exec("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2", string(hashedPassword), userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Delete used token and revoke active sessions
+	_, _ = DB.Exec("DELETE FROM password_reset_tokens WHERE user_id = $1", userID)
+	_, _ = DB.Exec("UPDATE user_sessions SET revoked_at = NOW() WHERE user_id = $1", userID)
+
+	return GetUserByID(userID)
 }

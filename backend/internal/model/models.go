@@ -129,3 +129,23 @@ type LoginAuditLog struct {
 	IPAddress         string    `bson:"ip_address" json:"ip_address"`
 	UserAgent         string    `bson:"user_agent" json:"user_agent"`
 }
+
+type EmailVerificationAuditLog struct {
+	ID        string    `bson:"_id,omitempty" json:"id"`
+	UserID    string    `bson:"user_id" json:"user_id"`
+	Email     string    `bson:"email" json:"email"`
+	Method    string    `bson:"method" json:"method"` // "otp" or "link"
+	IPAddress string    `bson:"ip_address" json:"ip_address"`
+	UserAgent string    `bson:"user_agent" json:"user_agent"`
+	VerifiedAt time.Time `bson:"verified_at" json:"verified_at"`
+}
+
+type PasswordResetAuditLog struct {
+	ID        string    `bson:"_id,omitempty" json:"id"`
+	UserID    string    `bson:"user_id" json:"user_id"`
+	Email     string    `bson:"email" json:"email"`
+	Action    string    `bson:"action" json:"action"` // "request" or "reset_success"
+	IPAddress string    `bson:"ip_address" json:"ip_address"`
+	UserAgent string    `bson:"user_agent" json:"user_agent"`
+	Timestamp time.Time `bson:"timestamp" json:"timestamp"`
+}

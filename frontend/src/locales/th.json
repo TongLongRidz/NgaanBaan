@@ -41,7 +41,8 @@
     "language": "ภาษา",
     "notifications": "การแจ้งเตือน",
     "messages": "ข้อความ",
-    "shared_with_me": "แชร์กับฉัน"
+    "shared_with_me": "แชร์กับฉัน",
+    "my_projects": "โปรเจกต์ของฉัน"
   },
   "landing": {
     "hero_title_1": "จัดการงานในทีม",
@@ -76,6 +77,25 @@
     "members": "สมาชิก",
     "open_board": "เปิดใช้งาน",
     "active": "ใช้งานอยู่"
+  },
+  "empty": {
+    "no_projects_found": "ยังไม่มีโปรเจกต์",
+    "create_to_get_started": "เริ่มต้นสร้างโปรเจกต์ใหม่ เพื่อจัดการงานของคุณ",
+    "new_project_btn": "สร้างโปรเจกต์ใหม่",
+    "no_recent_projects": "ยังไม่มีโปรเจกต์ที่เปิดล่าสุด",
+    "no_recent_desc": "โปรเจกต์ที่คุณเปิดใช้งานล่าสุดจะแสดงที่นี่ เพื่อการเข้าถึงอย่างรวดเร็ว",
+    "no_starred_projects": "ยังไม่มีโปรเจกต์ที่ติดดาวไว้",
+    "no_starred_desc": "กดติดดาวโปรเจกต์ เพื่อเข้าถึงได้สะดวกรวดเร็ว",
+    "no_shared_projects": "ยังไม่มีโปรเจกต์ที่ถูกแชร์",
+    "no_shared_desc": "โปรเจกต์ที่เพื่อนร่วมทีมแชร์กับคุณ จะแสดงที่นี่",
+    "create_modal_title": "สร้างโปรเจกต์ใหม่",
+    "title_label": "ชื่อโปรเจกต์ *",
+    "title_placeholder": "เช่น ปรับปรุงเว็บไซต์",
+    "desc_label": "รายละเอียด",
+    "desc_placeholder": "รายละเอียดสั้น ๆ ของโปรเจกต์...",
+    "cancel_btn": "ยกเลิก",
+    "create_btn": "สร้างโปรเจกต์",
+    "creating_btn": "กำลังสร้าง..."
   },
   "kanban": {
     "board_members": "สมาชิกในทีม",
@@ -128,7 +148,7 @@
     "otp_placeholder": "กรอกรหัส 6 หลัก",
     "verify_otp_btn": "ยืนยันรหัส OTP",
     "resend_otp_btn": "ส่งรหัสใหม่ ({seconds}s)",
-    "resend_otp_ready": "ส่งรหัสใหม่อีกครั้ง",
+    "resend_otp_ready": "กดส่งรหัส OTP",
     "verify_or_link": "หรือคลิกลิงก์เปิดในเบราว์เซอร์",
     "copy_link_btn": "คัดลอกลิงก์ยืนยันตัวตน",
     "verification_success": "ยืนยันอีเมลเรียบร้อยแล้ว!",

@@ -22,6 +22,7 @@ import {
   Layout,
   LayoutGrid,
   LayoutDashboard,
+  FolderKanban,
 } from "lucide-react";
 
 export function SideNavbar() {
@@ -33,10 +34,20 @@ export function SideNavbar() {
       try {
         const saved = localStorage.getItem("sidenavbar_is_collapsed");
         if (saved !== null) return JSON.parse(saved);
+        return window.innerWidth < 768;
       } catch {}
     }
     return false;
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sidenavbar_is_collapsed");
+      if (saved === null) {
+        setIsCollapsed(window.innerWidth < 768);
+      }
+    }
+  }, []);
 
   const [isRecentsOpen, setIsRecentsOpen] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
@@ -92,14 +103,9 @@ export function SideNavbar() {
 
   useEffect(() => {
     const fetchRecent = async () => {
-      const token = localStorage.getItem("user_session_id");
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-        const headers: Record<string, string> = {};
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-
         const res = await fetch(`${apiUrl}/api/projects`, {
-          headers,
           credentials: "include",
         });
         if (res.ok) {
@@ -280,6 +286,24 @@ export function SideNavbar() {
                 <Users className={`h-4 w-4 shrink-0 transition-transform duration-200 ${pathname === "/projects/shared" ? "text-[var(--foreground)] scale-110" : "text-[var(--muted-foreground)]"}`} />
                 <span className={`truncate transition-all duration-300 ${isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>
                   {t("nav.shared_with_me") || "Shared with me"}
+                </span>
+              </div>
+            </Link>
+
+            {/* My Projects */}
+            <Link
+              href="/projects/my"
+              title={isCollapsed ? `${t("nav.my_projects")}` : undefined}
+              className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 ${
+                pathname === "/projects/my"
+                  ? "bg-[var(--input-bg)] text-[var(--foreground)] font-semibold"
+                  : "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--input-bg)]"
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <FolderKanban className={`h-4 w-4 shrink-0 transition-transform duration-200 ${pathname === "/projects/my" ? "text-[var(--foreground)] scale-110" : "text-[var(--muted-foreground)]"}`} />
+                <span className={`truncate transition-all duration-300 ${isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}>
+                  {t("nav.my_projects") || "My Projects"}
                 </span>
               </div>
             </Link>

@@ -41,7 +41,8 @@
     "language": "Language",
     "notifications": "Notifications",
     "messages": "Messages",
-    "shared_with_me": "Shared with me"
+    "shared_with_me": "Shared with me",
+    "my_projects": "My Projects"
   },
   "landing": {
     "hero_title_1": "Manage Your Team's Tasks",
@@ -76,6 +77,25 @@
     "members": "Members",
     "open_board": "Open",
     "active": "Active"
+  },
+  "empty": {
+    "no_projects_found": "No projects found",
+    "create_to_get_started": "Create a new project to get started with your tasks",
+    "new_project_btn": "New Project",
+    "no_recent_projects": "No recent projects",
+    "no_recent_desc": "Projects you recently view will show up here for quick access",
+    "no_starred_projects": "No starred projects",
+    "no_starred_desc": "Star projects to find them faster",
+    "no_shared_projects": "No shared projects",
+    "no_shared_desc": "Projects shared with you by teammates will appear here",
+    "create_modal_title": "Create New Project",
+    "title_label": "Project Title *",
+    "title_placeholder": "e.g. Website Redesign",
+    "desc_label": "Description",
+    "desc_placeholder": "Brief description of the project...",
+    "cancel_btn": "Cancel",
+    "create_btn": "Create Project",
+    "creating_btn": "Creating..."
   },
   "kanban": {
     "board_members": "Team Members",
@@ -128,7 +148,7 @@
     "otp_placeholder": "Enter 6-digit OTP",
     "verify_otp_btn": "Verify OTP Code",
     "resend_otp_btn": "Resend Code ({seconds}s)",
-    "resend_otp_ready": "Resend Code",
+    "resend_otp_ready": "Click to Send OTP",
     "verify_or_link": "Or click link to open in browser",
     "copy_link_btn": "Copy Verification Link",
     "verification_success": "Email verified successfully!",

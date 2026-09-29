@@ -1,4 +1,4 @@
-.PHONY: help frontend backend db-up db-down dev docker-up docker-down
+.PHONY: help frontend backend db-up db-down db-init db-reset dev docker-up docker-down
 
 help:
 	@echo "Available Makefile commands:"
@@ -6,6 +6,8 @@ help:
 	@echo "  make backend     - Run Go backend development server"
 	@echo "  make db-up       - Start PostgreSQL database container via docker-compose"
 	@echo "  make db-down     - Stop PostgreSQL database container"
+	@echo "  make db-init     - Initialize database schema into PostgreSQL"
+	@echo "  make db-reset    - Stop containers and remove volumes (fresh database start)"
 	@echo "  make docker-up   - Start all services (db, backend, frontend) via docker-compose"
 	@echo "  make docker-down - Stop all docker-compose services"
 
@@ -27,7 +29,11 @@ db-down:
 
 db-init:
 	@echo "Initializing database schema into PostgreSQL..."
-	docker exec -i kanban_postgres psql -U kanban_user -d kanban_db < backend/init.sql
+	docker exec -i ngaanbaan_postgres psql -U ngaanbaan_user -d ngaanbaan_db < backend/init.sql
+
+db-reset:
+	@echo "Stopping containers and deleting all database volumes..."
+	docker-compose down -v
 
 docker-up:
 	@echo "Starting all full-stack services..."

@@ -28,11 +28,20 @@ CREATE TABLE IF NOT EXISTS email_verifications (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. user_sessions
+-- 2.1 password_reset_tokens
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. user_sessions (Tokens Table for Refresh Token Rotation & Hashing)
 CREATE TABLE IF NOT EXISTS user_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    refresh_token_hash CHAR(64) UNIQUE NOT NULL,
+    refresh_token_hash VARCHAR(64) UNIQUE NOT NULL,
     user_agent VARCHAR(255),
     ip_address VARCHAR(45),
     expires_at TIMESTAMPTZ NOT NULL,

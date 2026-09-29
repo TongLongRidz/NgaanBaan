@@ -49,7 +49,7 @@ export function Footer() {
 
           {/* Connect & Social */}
           <div className="space-y-3">
-            <h4 className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-slate-200" : "text-slate-900"}`}>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">
               {t("common.connect")}
             </h4>
             <div className="flex items-center gap-2">
@@ -57,11 +57,7 @@ export function Footer() {
                 href="https://github.com"
                 target="_blank"
                 rel="noreferrer"
-                className={`p-2 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                  isDark
-                    ? "bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-indigo-400"
-                    : "bg-white border-slate-200 hover:bg-slate-100 text-slate-700 hover:text-indigo-600 shadow-sm"
-                }`}
+                className="p-2 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-[var(--card-bg)] border-[var(--card-border)] text-[var(--foreground)] hover:bg-[var(--input-bg)] shadow-xs"
                 title="GitHub"
                 aria-label="GitHub Repository"
               >
@@ -71,11 +67,7 @@ export function Footer() {
               </a>
               <a
                 href="mailto:support@ngaanbaanboard.com"
-                className={`p-2 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                  isDark
-                    ? "bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-indigo-400"
-                    : "bg-white border-slate-200 hover:bg-slate-100 text-slate-700 hover:text-indigo-600 shadow-sm"
-                }`}
+                className="p-2 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-[var(--card-bg)] border-[var(--card-border)] text-[var(--foreground)] hover:bg-[var(--input-bg)] shadow-xs"
                 title={t("common.email_support")}
                 aria-label="Email Support"
               >

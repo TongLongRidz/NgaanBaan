@@ -114,6 +114,7 @@ input:focus-visible {
   from {
     width: 0%;
   }
+
   to {
     width: 100%;
   }
@@ -139,9 +140,10 @@ input:focus-visible {
 /* Smooth Fade In Animation for Language Switching */
 @keyframes fadeInSmooth {
   from {
-    opacity: 0.3;
-    transform: translateY(2px);
+    opacity: 0;
+    transform: translateY(6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -152,3 +154,70 @@ input:focus-visible {
   animation: fadeInSmooth 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Smart Transition Animations for Auth Form Switching */
+@keyframes slideTitleUp {
+  from {
+    opacity: 0.4;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes smartAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+    max-height: 0;
+  }
+
+  30% {
+    opacity: 0.2;
+    max-height: 80px;
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 200px;
+  }
+}
+
+.animate-title-slide {
+  animation: slideTitleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-smart-appear {
+  animation: smartAppear 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* MagicUI Official View Transition Styles for Theme Toggler */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+[data-magicui-theme-vt="active"]::view-transition-new(root) {
+  animation: magicuiThemeClipExpand var(--magicui-theme-toggle-vt-duration, 400ms) ease-in-out forwards;
+}
+
+@keyframes magicuiThemeClipExpand {
+  from {
+    clip-path: var(--magicui-theme-vt-clip-from, circle(0% at 50% 50%));
+  }
+  to {
+    clip-path: circle(150% at 50% 50%);
+  }
+}

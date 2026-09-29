@@ -7,30 +7,20 @@ import "aos/dist/aos.css";
 import { useTheme } from "@/hooks/useTheme";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Footer } from "@/components/ui/Footer";
+import { LandingNavbar } from "@/components/ui/LandingNavbar";
 import {
-  LayoutDashboard,
   ArrowRight,
-  Sun,
-  Moon,
-  Globe,
   CheckCircle2,
-  ShieldCheck,
-  Users,
-  Settings,
-  X,
-  Sparkles,
   History,
   MessageSquare,
   CreditCard,
-  Ban,
-  Banknote
+  Ban
 } from "lucide-react";
 
 export default function MainPage() {
-  const { theme, toggleTheme } = useTheme();
-  const { language, toggleLanguage, t } = useLanguage();
+  const { theme } = useTheme();
+  const { language, t } = useLanguage();
   const isDark = theme === "dark";
-  const [showSettings, setShowSettings] = React.useState(false);
 
   useEffect(() => {
     AOS.init({
@@ -41,125 +31,9 @@ export default function MainPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col font-sans transition-colors duration-300 bg-[var(--background)] text-[var(--foreground)]">
+    <div className="min-h-screen flex flex-col font-sans bg-[var(--background)] text-[var(--foreground)]">
       {/* Navigation Bar */}
-      <nav className="h-16 border-b border-[var(--nav-border)] bg-[var(--nav-bg)] backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 transition-colors duration-300">
-        <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-xl bg-[var(--primary-btn-bg)] border border-[var(--card-border)] flex items-center justify-center shadow-md shrink-0">
-            <LayoutDashboard className="h-5 w-5 text-[var(--primary-btn-text)]" />
-          </div>
-          <span className="font-bold text-base sm:text-lg tracking-tight truncate text-[var(--foreground)]">
-            {t("common.brand")}
-          </span>
-        </div>
-
-        {/* Desktop Navigation Items */}
-        <div className="hidden sm:flex items-center gap-2.5">
-          <button
-            onClick={toggleLanguage}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${isDark
-                ? "bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800"
-                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
-              }`}
-            title="Switch Language"
-            aria-label="Switch Language"
-          >
-            <Globe className="h-3.5 w-3.5 text-slate-400" />
-            <span>{language.toUpperCase()}</span>
-          </button>
-
-          <button
-            onClick={toggleTheme}
-            className={`p-2 rounded-xl border transition-all flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${isDark
-                ? "bg-slate-900 text-amber-400 border-slate-800 hover:bg-slate-800"
-                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
-              }`}
-            title="Toggle Theme"
-            aria-label="Toggle Theme"
-          >
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
-
-          <Link
-            href="/login"
-            className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${isDark
-                ? "bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-200"
-                : "bg-white border-slate-200 hover:bg-slate-100 text-slate-800 shadow-sm"
-              }`}
-          >
-            {t("common.sign_in")}
-          </Link>
-
-          <Link
-            href="/login?mode=register"
-            className={`text-xs font-semibold px-4 py-2 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${isDark
-                ? "bg-slate-100 text-slate-900 border-slate-100 hover:bg-white"
-                : "bg-slate-900 text-slate-50 border-slate-900 hover:bg-slate-800"
-              }`}
-          >
-            {t("common.sign_up")}
-          </Link>
-        </div>
-
-        {/* Mobile Navigation Dropdown Button */}
-        <div className="flex sm:hidden items-center gap-2">
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className={`p-2 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${showSettings
-                ? "bg-slate-800 text-white border-slate-700"
-                : isDark
-                  ? "bg-slate-900 text-slate-300 border-slate-800"
-                  : "bg-white text-slate-700 border-slate-200"
-              }`}
-            aria-label="Settings Menu"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
-
-          <Link
-            href="/login"
-            className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${isDark
-                ? "bg-slate-100 text-slate-900 border-slate-100"
-                : "bg-slate-900 text-slate-50 border-slate-900"
-              }`}
-          >
-            {t("common.sign_in")}
-          </Link>
-
-          {showSettings && (
-            <div
-              className={`absolute right-4 top-16 w-56 rounded-2xl border shadow-2xl p-3 z-50 transition-all ${isDark ? "bg-[#131625] border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900"
-                }`}
-            >
-              <div className="space-y-2 text-xs font-medium">
-                <button
-                  onClick={toggleTheme}
-                  className={`w-full flex items-center justify-between p-2 rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${isDark ? "bg-slate-900/60 border-slate-800 hover:bg-slate-800/80" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
-                    }`}
-                >
-                  <span className="flex items-center gap-2">
-                    {isDark ? <Moon className="h-3.5 w-3.5 text-amber-400" /> : <Sun className="h-3.5 w-3.5 text-amber-500" />}
-                    Theme
-                  </span>
-                  <span className="text-[10px] font-bold capitalize">{theme}</span>
-                </button>
-
-                <button
-                  onClick={toggleLanguage}
-                  className={`w-full flex items-center justify-between p-2 rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${isDark ? "bg-slate-900/60 border-slate-800 hover:bg-slate-800/80" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
-                    }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <Globe className="h-3.5 w-3.5 text-slate-400" />
-                    Language
-                  </span>
-                  <span className="text-[10px] font-bold">{language.toUpperCase()}</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </nav>
+      <LandingNavbar />
 
       {/* Main Content Area with Language Fade Effect */}
       <div key={language} className="animate-fade-in flex flex-col flex-1">

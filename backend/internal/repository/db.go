@@ -24,15 +24,15 @@ func InitDB() *sql.DB {
 		}
 		user := os.Getenv("POSTGRES_USER")
 		if user == "" {
-			user = "kanban_user"
+			user = "ngaanbaan_user"
 		}
 		password := os.Getenv("POSTGRES_PASSWORD")
 		if password == "" {
-			password = "kanban_password"
+			password = "ngaanbaan_password"
 		}
 		dbname := os.Getenv("POSTGRES_DB")
 		if dbname == "" {
-			dbname = "kanban_db"
+			dbname = "ngaanbaan_db"
 		}
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbname)
 	}

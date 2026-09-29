@@ -41,13 +41,8 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
   useEffect(() => {
     const fetchProjectDetails = async () => {
       try {
-        const token = localStorage.getItem("user_session_id");
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-        const headers: Record<string, string> = {};
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-
         const res = await fetch(`${apiUrl}/api/projects/${projectId}`, {
-          headers,
           credentials: "include",
         });
         if (res.ok) {

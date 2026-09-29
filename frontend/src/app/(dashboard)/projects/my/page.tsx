@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useLanguage } from "@/hooks/useLanguage";
 import { TopNavbar } from "@/components/ui/TopNavbar";
 import { EmptyProjectState } from "@/components/ui/EmptyProjectState";
-import { Users, Grid, Clock } from "lucide-react";
+import { Users, Grid, FolderKanban } from "lucide-react";
 
 interface Project {
   id: string;
@@ -15,7 +15,7 @@ interface Project {
   updated_at: string;
 }
 
-export default function RecentProjectsPage() {
+export default function MyProjectsPage() {
   const { t } = useLanguage();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +32,7 @@ export default function RecentProjectsPage() {
           setProjects(data);
         }
       } catch (err) {
-        console.error("Failed to fetch projects:", err);
+        console.error("Failed to fetch my projects:", err);
       } finally {
         setLoading(false);
       }
@@ -49,22 +49,22 @@ export default function RecentProjectsPage() {
       <main className="flex-1 p-6 md:p-8 flex flex-col min-h-[calc(100vh-64px)]">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-[var(--input-bg)] border border-[var(--card-border)] text-[var(--foreground)] flex items-center justify-center shadow-xs">
-              <Clock className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 flex items-center justify-center shadow-xs">
+              <FolderKanban className="h-4 w-4" />
             </div>
             <div>
               <h2 className="font-bold text-xl leading-none text-[var(--foreground)]">
-                {t("nav.recents") || "Recently Opened"}
+                {t("nav.my_projects") || "My Projects"}
               </h2>
             </div>
           </div>
         </div>
 
-        {/* Content Area */}
+        {/* Grid of projects */}
         {!loading && projects.length === 0 && (
           <EmptyProjectState
-            title={t("empty.no_recent_projects")}
-            description={t("empty.no_recent_desc")}
+            title={t("empty.no_projects_found")}
+            description={t("empty.create_to_get_started")}
             onProjectCreated={() => {
               window.location.reload();
             }}
@@ -77,11 +77,11 @@ export default function RecentProjectsPage() {
               <Link
                 key={project.id}
                 href={`/projects/${project.id}`}
-                className="group p-5 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] hover:border-[var(--muted-foreground)]/40 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+                className="group p-5 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] hover:border-blue-500/50 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="h-8 w-8 rounded-lg bg-[var(--input-bg)] text-[var(--foreground)] border border-[var(--card-border)] flex items-center justify-center font-bold text-xs shrink-0">
+                    <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center font-bold text-xs shrink-0">
                       <Grid className="h-4 w-4" />
                     </div>
                     <span className="text-[10px] font-medium text-[var(--muted-foreground)] px-2.5 py-1 rounded-full bg-[var(--input-bg)] border border-[var(--card-border)]">
@@ -89,7 +89,7 @@ export default function RecentProjectsPage() {
                     </span>
                   </div>
 
-                  <h3 className="font-bold text-base text-[var(--foreground)] group-hover:underline transition-colors mb-2">
+                  <h3 className="font-bold text-base text-[var(--foreground)] group-hover:text-blue-500 transition-colors mb-2">
                     {project.title}
                   </h3>
 
@@ -103,7 +103,7 @@ export default function RecentProjectsPage() {
                     <Users className="h-3.5 w-3.5" />
                     <span>{project.members_count} members</span>
                   </div>
-                  <span className="text-[var(--foreground)] font-semibold text-[11px] group-hover:translate-x-1 transition-transform">
+                  <span className="text-blue-500 font-semibold text-[11px] group-hover:translate-x-1 transition-transform">
                     Open →
                   </span>
                 </div>

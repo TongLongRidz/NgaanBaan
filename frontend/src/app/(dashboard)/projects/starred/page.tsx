@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/hooks/useLanguage";
 import { TopNavbar } from "@/components/ui/TopNavbar";
-import { Plus, Users, Grid, Star } from "lucide-react";
+import { EmptyProjectState } from "@/components/ui/EmptyProjectState";
+import { Users, Grid, Star } from "lucide-react";
 
 interface Project {
   id: string;
@@ -22,13 +23,8 @@ export default function StarredProjectsPage() {
   useEffect(() => {
     const fetchStarred = async () => {
       try {
-        const token = localStorage.getItem("user_session_id");
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-        const headers: Record<string, string> = {};
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-
         const res = await fetch(`${apiUrl}/api/projects/starred`, {
-          headers,
           credentials: "include",
         });
         if (res.ok) {
@@ -50,7 +46,7 @@ export default function StarredProjectsPage() {
       <TopNavbar />
 
       {/* Main Content */}
-      <main className="flex-1 p-6 md:p-8">
+      <main className="flex-1 p-6 md:p-8 flex flex-col min-h-[calc(100vh-64px)]">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center">
@@ -62,18 +58,17 @@ export default function StarredProjectsPage() {
               </h2>
             </div>
           </div>
-
-          <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md transition-all">
-            <Plus className="h-4 w-4" />
-            <span>{t("boards.create_board") || "Create Project"}</span>
-          </button>
         </div>
 
-        {loading ? (
-          <div className="text-xs text-[var(--muted-foreground)] p-4">Loading starred projects...</div>
-        ) : projects.length === 0 ? (
-          <div className="text-xs text-[var(--muted-foreground)] p-4">No starred projects yet.</div>
-        ) : (
+        {!loading && projects.length === 0 && (
+          <EmptyProjectState
+            title={t("empty.no_starred_projects")}
+            description={t("empty.no_starred_desc")}
+            showCreateButton={false}
+          />
+        )}
+
+        {!loading && projects.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {projects.map((project) => (
               <Link

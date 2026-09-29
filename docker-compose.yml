@@ -4,7 +4,7 @@ services:
   # PostgreSQL Database Service
   postgres:
     image: postgres:16-alpine
-    container_name: kanban_postgres
+    container_name: ngaanbaan_postgres
     restart: always
     env_file:
       - .env
@@ -14,7 +14,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kanban_user} -d ${POSTGRES_DB:-kanban_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ngaanbaan_user} -d ${POSTGRES_DB:-ngaanbaan_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -22,7 +22,7 @@ services:
   # MongoDB Service (Audit Logs & Task Chat History)
   mongodb:
     image: mongo:7-jammy
-    container_name: kanban_mongodb
+    container_name: ngaanbaan_mongodb
     restart: always
     env_file:
       - .env
@@ -36,7 +36,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: kanban_backend
+    container_name: ngaanbaan_backend
     restart: always
     ports:
       - "${PORT:-8080}:8080"
@@ -53,7 +53,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: kanban_frontend
+    container_name: ngaanbaan_frontend
     restart: always
     ports:
       - "3000:3000"
