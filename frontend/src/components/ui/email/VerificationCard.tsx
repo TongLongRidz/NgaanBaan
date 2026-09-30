@@ -51,7 +51,7 @@ export function EmailVerificationCard({
     setMounted(true);
   }, []);
 
-  const isDark = mounted ? theme === "dark" : false;
+  const isDark = theme === "dark";
 
 
   const verifyLink = typeof window !== "undefined" && verificationToken
@@ -73,9 +73,7 @@ export function EmailVerificationCard({
           {t("auth.verify_email_title")}
         </h2>
         <p className={`text-xs mt-1.5 leading-relaxed px-2 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-          {language === "th"
-            ? "กรุณาคลิกส่งรหัส เพื่อรับรหัสยืนยัน OTP 6 หลัก และลิงก์ไปยังอีเมล"
-            : "Click send code to receive a 6-digit OTP code & link at"}
+          {t("auth.verify_subtitle")}
         </p>
         <div className={`inline-block mt-2 font-semibold px-3 py-1 rounded-full text-xs border ${
           isDark
@@ -90,7 +88,7 @@ export function EmailVerificationCard({
       <form onSubmit={onVerifyOtp} className="space-y-5">
         <div>
           <label className={`block text-xs font-bold uppercase tracking-wider text-center mb-3 ${isDark ? "text-slate-400" : "text-slate-600"}`}>
-            {language === "th" ? "กรอกรหัส OTP 6 หลัก" : "Enter 6-digit OTP Code"}
+            {t("auth.otp_placeholder")}
           </label>
           
           <div className="flex items-center justify-center gap-2 sm:gap-2.5 my-2">

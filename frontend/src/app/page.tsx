@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import AOS from "aos";
 import "aos/dist/aos.css";
 import { useTheme } from "@/hooks/useTheme";
@@ -18,9 +19,30 @@ import {
 } from "lucide-react";
 
 export default function MainPage() {
+  const router = useRouter();
   const { theme } = useTheme();
   const { language, t } = useLanguage();
   const isDark = theme === "dark";
+  const [checkingAuth, setCheckingAuth] = useState(false);
+
+  const handleGetStarted = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (checkingAuth) return;
+    setCheckingAuth(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const res = await fetch(`${apiUrl}/api/auth/me`, { credentials: "include" });
+      if (res.ok) {
+        router.push("/projects");
+      } else {
+        router.push("/login");
+      }
+    } catch {
+      router.push("/login");
+    } finally {
+      setCheckingAuth(false);
+    }
+  };
 
   useEffect(() => {
     AOS.init({
@@ -68,16 +90,17 @@ export default function MainPage() {
           {/* Get Started Button */}
           <div data-aos="fade-up" data-aos-delay="600" data-aos-duration="600">
             <div className="flex flex-wrap items-center justify-center gap-4">
-              <Link
-                href="/projects"
-                className={`flex items-center gap-2 font-semibold px-6 py-3.5 rounded-xl border text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${isDark
+              <button
+                onClick={handleGetStarted}
+                disabled={checkingAuth}
+                className={`flex items-center gap-2 font-semibold px-6 py-3.5 rounded-xl border text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 cursor-pointer ${isDark
                     ? "bg-slate-100 text-slate-900 border-slate-100 hover:bg-white"
                     : "bg-slate-900 text-slate-50 border-slate-900 hover:bg-slate-800"
                   }`}
               >
                 <span>{t("landing.get_started")}</span>
                 <ArrowRight className="h-4 w-4" />
-              </Link>
+              </button>
             </div>
           </div>
         </header>

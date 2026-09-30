@@ -87,14 +87,15 @@ func CreateUserSession(userID, userAgent string) (string, error) {
 }
 
 func ValidateUserSession(sessionID string) (*model.User, error) {
+	tokenHash := HashToken(sessionID)
 	var user model.User
 	query := `
 		SELECT u.id, u.email, u.firstname, COALESCE(u.lastname, ''), COALESCE(u.avatar_url, ''), u.status, u.is_email_verified, u.last_active, u.created_at
 		FROM user_sessions s
 		JOIN users u ON s.user_id = u.id
-		WHERE s.id = $1 AND (s.expires_at > NOW()) AND (s.revoked_at IS NULL)
+		WHERE (s.refresh_token_hash = $1 OR s.id::text = $2) AND (s.expires_at > NOW()) AND (s.revoked_at IS NULL)
 	`
-	err := DB.QueryRow(query, sessionID).Scan(
+	err := DB.QueryRow(query, tokenHash, sessionID).Scan(
 		&user.ID, &user.Email, &user.Firstname, &user.Lastname, &user.AvatarURL, &user.Status, &user.IsEmailVerified, &user.LastActive, &user.CreatedAt,
 	)
 	if err != nil {
@@ -273,4 +274,18 @@ func ResetUserPassword(token, newPassword string) (*model.User, error) {
 	_, _ = DB.Exec("UPDATE user_sessions SET revoked_at = NOW() WHERE user_id = $1", userID)
 
 	return GetUserByID(userID)
+}
+
+// ValidatePasswordResetToken checks if token is valid and not expired
+func ValidatePasswordResetToken(token string) bool {
+	if token == "" {
+		return false
+	}
+	var userID string
+	query := `
+		SELECT user_id FROM password_reset_tokens
+		WHERE token = $1 AND expires_at > NOW()
+	`
+	err := DB.QueryRow(query, token).Scan(&userID)
+	return err == nil
 }

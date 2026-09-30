@@ -28,22 +28,54 @@ import {
 import { EmailVerificationCard } from "@/components/ui/email/VerificationCard";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
+function getInitialAuthMode(): "login" | "register" | "verify" | "forgot" {
+  if (typeof window !== "undefined") {
+    const sessionMode = sessionStorage.getItem("auth_mode");
+    const urlParams = new URLSearchParams(window.location.search);
+    const target = urlParams.get("mode") || sessionMode;
+    if (target === "register") {
+      return "register";
+    }
+  }
+  return "login";
+}
+
 function UnifiedAuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialMode = searchParams.get("mode") === "register" ? "register" : "login";
 
   const { theme, toggleTheme } = useTheme();
   const { language, toggleLanguage, t } = useLanguage();
   const [mounted, setMounted] = useState(false);
-  const isDark = mounted ? theme === "dark" : false;
+  const isDark = theme === "dark";
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   // Form states
-  const [mode, setMode] = useState<"login" | "register" | "verify" | "forgot">(initialMode);
+  const [mode, setMode] = useState<"login" | "register" | "verify" | "forgot">(getInitialAuthMode);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sessionMode = sessionStorage.getItem("auth_mode");
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetMode = urlParams.get("mode") || sessionMode;
+
+      if (targetMode === "register") {
+        setMode("register");
+      } else if (targetMode === "login") {
+        setMode("login");
+      }
+
+      if (sessionMode) {
+        sessionStorage.removeItem("auth_mode");
+      }
+      if (urlParams.has("mode")) {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    }
+  }, []);
   const [forgotEmail, setForgotEmail] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -53,7 +85,7 @@ function UnifiedAuthForm() {
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [showRegPassword, setShowRegPassword] = useState(false);
-  
+
   // Email verification states
   const [otpCode, setOtpCode] = useState("");
   const [verificationToken, setVerificationToken] = useState("");
@@ -103,11 +135,7 @@ function UnifiedAuthForm() {
     }
   };
 
-  useEffect(() => {
-    if (searchParams.get("mode") === "register") {
-      setMode("register");
-    }
-  }, [searchParams]);
+
 
   // Password strength calculator
   const getPasswordStrength = (pass: string) => {
@@ -121,16 +149,16 @@ function UnifiedAuthForm() {
     let label = "";
     let color = "bg-rose-500";
     if (score <= 25) {
-      label = language === "th" ? "อ่อนมาก" : "Very Weak";
+      label = t("auth.strength_very_weak");
       color = "bg-rose-500";
     } else if (score <= 50) {
-      label = language === "th" ? "ปานกลาง" : "Medium";
+      label = t("auth.strength_medium");
       color = "bg-amber-500";
     } else if (score <= 75) {
-      label = language === "th" ? "ดี" : "Good";
+      label = t("auth.strength_good");
       color = "bg-emerald-400";
     } else {
-      label = language === "th" ? "ปลอดภัยมาก" : "Strong";
+      label = t("auth.strength_strong");
       color = "bg-emerald-500";
     }
 
@@ -141,9 +169,12 @@ function UnifiedAuthForm() {
   // Real-time Validation helper
   const validateField = (name: string, value: string) => {
     let err = "";
-    if (name === "loginEmail") {
+    if (name === "loginEmail" || name === "forgotEmail") {
+      const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
       if (!value.trim()) {
         err = t("auth.email_required");
+      } else if (!emailRegex.test(value.trim()) || value.includes("..")) {
+        err = t("auth.email_missing_at");
       }
     } else if (name === "regEmail") {
       const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
@@ -165,6 +196,10 @@ function UnifiedAuthForm() {
     } else if (name === "firstname") {
       if (!value.trim()) {
         err = t("auth.firstname_required");
+      }
+    } else if (name === "lastname") {
+      if (!value.trim()) {
+        err = t("auth.lastname_required");
       }
     }
 
@@ -320,11 +355,12 @@ function UnifiedAuthForm() {
     setErrorKey(null);
 
     const fnameErr = validateField("firstname", firstname);
+    const lnameErr = validateField("lastname", lastname);
     const emailErr = validateField("regEmail", regEmail);
     const passErr = validateField("regPassword", regPassword);
-    setTouched({ firstname: true, regEmail: true, regPassword: true });
+    setTouched({ firstname: true, lastname: true, regEmail: true, regPassword: true });
 
-    if (fnameErr || emailErr || passErr) return;
+    if (fnameErr || lnameErr || emailErr || passErr) return;
 
     setLoading(true);
 
@@ -442,10 +478,10 @@ function UnifiedAuthForm() {
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (forgotCooldown > 0) return;
-    if (!forgotEmail.trim()) {
-      validateField("loginEmail", forgotEmail);
-      return;
-    }
+
+    const emailErr = validateField("forgotEmail", forgotEmail);
+    setTouched((prev) => ({ ...prev, forgotEmail: true }));
+    if (emailErr) return;
 
     setLoading(true);
     setErrorKey(null);
@@ -476,7 +512,9 @@ function UnifiedAuthForm() {
         title: "ส่งลิงก์เรียบร้อยแล้ว",
         text: data.message || "หากอีเมลนี้อยู่ในระบบ เราได้ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลของคุณเรียบร้อยแล้ว (สามารถส่งซ้ำได้ในอีก 60 วินาที)",
         icon: "success",
-        confirmButtonText: "ตกลง",
+        showConfirmButton: false,
+        timer: 3500,
+        timerProgressBar: true,
       });
     } catch (err: any) {
       setErrorKey({ key: "auth.invalid_credentials" });
@@ -487,21 +525,15 @@ function UnifiedAuthForm() {
 
 
   return (
-    <div
-      className={`min-h-screen flex flex-col justify-center items-center px-4 py-12 ${isDark ? "bg-[#0d0f17] text-slate-100" : "bg-slate-50 text-slate-900"
-        }`}
-    >
+    <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 transition-colors duration-300 bg-[var(--background)] text-[var(--foreground)]">
       {/* Absolute Top Left Back Button */}
       <div className="absolute top-6 left-6">
         <Link
           href="/"
-          className={`h-9 inline-flex items-center gap-2 px-3.5 rounded-xl border text-xs font-semibold transition-all ${isDark
-              ? "bg-slate-900/80 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800"
-              : "bg-white border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 shadow-sm"
-            }`}
+          className="h-9 inline-flex items-center gap-2 px-3.5 rounded-xl border text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-[var(--card-bg)] text-[var(--foreground)] border-[var(--card-border)] hover:bg-[var(--input-bg)] shadow-xs"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>{t("common.back_home") !== "common.back_home" ? t("common.back_home") : (language === "th" ? "กลับสู่หน้าหลัก" : "Back to Home")}</span>
+          <span>{t("common.back_home")}</span>
         </Link>
       </div>
 
@@ -511,27 +543,20 @@ function UnifiedAuthForm() {
           <>
             <button
               onClick={toggleLanguage}
-              className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-xl border text-xs font-semibold transition-all ${isDark
-                  ? "bg-slate-900/80 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800"
-                  : "bg-white border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 shadow-sm"
-                }`}
+              className="h-9 inline-flex items-center gap-1.5 px-3.5 rounded-xl border text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-[var(--card-bg)] text-[var(--foreground)] border-[var(--card-border)] hover:bg-[var(--input-bg)] shadow-xs"
               title="Switch Language"
             >
-              <Globe className="h-4 w-4" />
+              <Globe className="h-4 w-4 text-slate-400" />
               <span>{language.toUpperCase()}</span>
             </button>
 
-            <AnimatedThemeToggler
-              theme={theme}
-              onThemeChange={() => toggleTheme()}
-              variant="circle"
-              duration={500}
-              className={`w-9 h-9 inline-flex items-center justify-center rounded-xl border transition-all ${isDark
-                  ? "bg-slate-900 text-amber-400 border-slate-800 hover:bg-slate-800"
-                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100 shadow-sm"
-                }`}
+            <button
+              onClick={(e) => toggleTheme(e)}
+              className="w-9 h-9 inline-flex items-center justify-center rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-[var(--card-bg)] text-[var(--foreground)] border-[var(--card-border)] hover:bg-[var(--input-bg)] shadow-xs"
               title={`Switch to ${isDark ? "Light" : "Dark"} Mode`}
-            />
+            >
+              {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-700 dark:text-amber-400" />}
+            </button>
           </>
         )}
       </div>
@@ -541,13 +566,13 @@ function UnifiedAuthForm() {
         {mode !== "verify" && (
           <div className="text-center mb-6">
             <Link href="/" className="inline-flex items-center justify-center gap-3 mb-3 group">
-              <div className="h-12 w-12 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center shadow-xl transition-transform group-hover:scale-105">
-                <LayoutDashboard className="h-6 w-6 text-slate-100" />
+              <div className="h-12 w-12 rounded-2xl bg-white border border-slate-200 dark:bg-slate-900 dark:border-slate-700 flex items-center justify-center shadow-xl transition-transform group-hover:scale-105">
+                <LayoutDashboard className="h-6 w-6 text-slate-800 dark:text-slate-100" />
               </div>
             </Link>
             <h1
               key={mode}
-              className={`text-2xl font-extrabold tracking-tight animate-title-slide ${isDark ? "text-slate-50" : "text-slate-900"}`}
+              className="text-2xl font-extrabold tracking-tight animate-title-slide text-slate-900 dark:text-slate-50"
             >
               {mode === "login"
                 ? t("auth.welcome_back")
@@ -557,7 +582,7 @@ function UnifiedAuthForm() {
             </h1>
             <p
               key={`${mode}-sub`}
-              className={`text-xs mt-1.5 animate-title-slide ${isDark ? "text-slate-400" : "text-slate-500"}`}
+              className="text-xs mt-1.5 animate-title-slide text-slate-500 dark:text-slate-400"
             >
               {mode === "login"
                 ? t("auth.login_subtitle")
@@ -570,12 +595,10 @@ function UnifiedAuthForm() {
 
         {/* Tab Switcher with Sliding Pill Animation (Only shown when not verifying or forgot) */}
         {mode !== "verify" && mode !== "forgot" && (
-          <div className={`relative p-1 rounded-2xl border flex mb-6 transition-colors duration-300 ${isDark ? "bg-slate-900/80 border-slate-800" : "bg-slate-200/60 border-slate-200"}`}>
+          <div className="relative p-1 rounded-2xl border flex mb-6 bg-slate-200/60 border-slate-200 dark:bg-slate-900/80 dark:border-slate-800">
             {/* Animated Sliding Background Indicator */}
             <div
-              className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl transition-all duration-300 ease-out shadow-sm ${
-                isDark ? "bg-slate-800 border border-slate-700" : "bg-slate-900 border border-slate-900"
-              }`}
+              className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl transition-all duration-300 ease-out shadow-xs bg-white border border-slate-200 dark:bg-slate-800 dark:border-slate-700"
               style={{
                 transform: mode === "login" ? "translateX(0%)" : "translateX(100%)"
               }}
@@ -583,26 +606,20 @@ function UnifiedAuthForm() {
             <button
               type="button"
               onClick={() => switchMode("login")}
-              className={`relative z-10 flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors ${
-                mode === "login"
-                  ? "text-white"
-                  : isDark
-                    ? "text-slate-400 hover:text-slate-200"
-                    : "text-slate-600 hover:text-slate-900"
-              }`}
+              className={`relative z-10 flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors ${mode === "login"
+                ? "text-slate-900 dark:text-white"
+                : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
             >
               {t("common.sign_in")}
             </button>
             <button
               type="button"
               onClick={() => switchMode("register")}
-              className={`relative z-10 flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors ${
-                mode === "register"
-                  ? "text-white"
-                  : isDark
-                    ? "text-slate-400 hover:text-slate-200"
-                    : "text-slate-600 hover:text-slate-900"
-              }`}
+              className={`relative z-10 flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors ${mode === "register"
+                ? "text-slate-900 dark:text-white"
+                : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
             >
               {t("common.sign_up")}
             </button>
@@ -610,23 +627,14 @@ function UnifiedAuthForm() {
         )}
 
         {/* Auth Card */}
-        <div
-          className={`p-8 rounded-2xl border shadow-xl transition-all duration-300 ${
-            isDark
-              ? "bg-[#131625] border-slate-800/90 shadow-slate-950/20"
-              : "bg-white border-slate-200/80 shadow-slate-200/50"
-          }`}
-        >
+        <div className="p-8 rounded-2xl border shadow-xl transition-all bg-white border-slate-200/80 shadow-slate-200/50 dark:bg-[#131625] dark:border-slate-800/90 dark:shadow-slate-950/20">
 
           {mode !== "verify" && (
             <>
               {/* Google OAuth Login Button */}
               <button
                 type="button"
-                className={`w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl border font-semibold text-xs transition-all mb-6 ${isDark
-                    ? "bg-slate-900/90 border-slate-800 hover:bg-slate-800 text-slate-200"
-                    : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700"
-                  }`}
+                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl border font-semibold text-xs transition-all mb-6 bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700 dark:bg-slate-900/90 dark:border-slate-800 dark:hover:bg-slate-800 dark:text-slate-200"
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24">
                   <path
@@ -650,10 +658,9 @@ function UnifiedAuthForm() {
               </button>
 
               <div className="relative flex items-center justify-center mb-6">
-                <div className={`w-full border-t ${isDark ? "border-slate-800" : "border-slate-200"}`} />
+                <div className="w-full border-t border-slate-200 dark:border-slate-800" />
                 <span
-                  className={`absolute px-3 text-[10px] uppercase font-semibold tracking-wider transition-colors duration-300 ${isDark ? "bg-[#131625] text-slate-500" : "bg-white text-slate-400"
-                    }`}
+                  className="absolute px-3 text-[10px] uppercase font-semibold tracking-wider transition-colors duration-300 bg-white text-slate-400 dark:bg-[#131625] dark:text-slate-500"
                 >
                   {t("auth.or_with_email")}
                 </span>
@@ -662,83 +669,182 @@ function UnifiedAuthForm() {
           )}
 
           {/* Form Switcher */}
-          {mode === "login" ? (
-            <form onSubmit={handleLoginSubmit} className="space-y-5" noValidate>
+          {(mode === "login" || mode === "register") ? (
+            <form onSubmit={mode === "register" ? handleRegisterSubmit : handleLoginSubmit} className="space-y-5" noValidate>
+              {/* Firstname & Lastname Accordion Container */}
+              <div className={`grid transition-all duration-300 ease-in-out ${mode === "register"
+                  ? "grid-rows-[1fr] opacity-100"
+                  : "grid-rows-[0fr] opacity-0 pointer-events-none"
+                }`}>
+                <div className="overflow-hidden">
+                  <div className="grid grid-cols-2 gap-3 pb-1">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1.5 text-slate-700 dark:text-slate-300">
+                        {t("auth.firstname")}
+                      </label>
+                      <div className="relative">
+                        <User className={`h-4 w-4 absolute left-3 top-3 ${fieldErrors.firstname ? "text-rose-500" : "text-slate-400 dark:text-slate-500"}`} />
+                        <input
+                          type="text"
+                          value={firstname}
+                          onBlur={() => handleBlur("firstname", firstname)}
+                          onChange={(e) => handleChange("firstname", e.target.value, setFirstname)}
+                          placeholder={t("auth.firstname_placeholder")}
+                          className={`w-full rounded-xl text-xs pl-9 pr-3 py-2.5 outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 transition-colors ${fieldErrors.firstname
+                            ? "bg-slate-50 border border-rose-500 ring-1 ring-inset ring-rose-500 text-slate-900 dark:bg-slate-900/80 dark:text-slate-200"
+                            : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900 dark:bg-slate-900/80 dark:border-slate-800 dark:focus:border-slate-600 dark:text-slate-200"
+                            }`}
+                        />
+                        {fieldErrors.firstname && (
+                          <p className="absolute left-0 -bottom-4 text-[10px] font-medium text-rose-500 whitespace-nowrap">
+                            {fieldErrors.firstname}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1.5 text-slate-700 dark:text-slate-300">
+                        {t("auth.lastname")}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={lastname}
+                          onChange={(e) => handleChange("lastname", e.target.value, setLastname)}
+                          onBlur={(e) => handleBlur("lastname", e.target.value)}
+                          placeholder={t("auth.lastname_placeholder")}
+                          className={`w-full rounded-xl text-xs px-3 py-2.5 outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 transition-colors ${fieldErrors.lastname
+                            ? "bg-slate-50 border border-rose-500 ring-1 ring-inset ring-rose-500 text-slate-900 dark:bg-slate-900/80 dark:text-slate-200"
+                            : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900 dark:bg-slate-900/80 dark:border-slate-800 dark:focus:border-slate-600 dark:text-slate-200"
+                            }`}
+                        />
+                        {fieldErrors.lastname && (
+                          <p className="absolute left-0 -bottom-4 text-[10px] font-medium text-rose-500 whitespace-nowrap">
+                            {fieldErrors.lastname}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div>
-                <label className={`block text-xs font-semibold mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
+                <label className="block text-xs font-semibold mb-1.5 text-slate-700 dark:text-slate-300">
                   {t("auth.email_address")}
                 </label>
                 <div className="relative">
-                  <Mail className={`h-4 w-4 absolute left-3 top-3 ${fieldErrors.loginEmail ? "text-rose-500" : isDark ? "text-slate-500" : "text-slate-400"}`} />
+                  <Mail className={`h-4 w-4 absolute left-3 top-3 ${(mode === "register" ? fieldErrors.regEmail : fieldErrors.loginEmail) ? "text-rose-500" : "text-slate-400 dark:text-slate-500"}`} />
                   <input
                     type="text"
-                    value={loginEmail}
-                    onBlur={() => handleBlur("loginEmail", loginEmail)}
-                    onChange={(e) => handleChange("loginEmail", e.target.value, setLoginEmail)}
+                    value={mode === "register" ? regEmail : loginEmail}
+                    onBlur={() => handleBlur(mode === "register" ? "regEmail" : "loginEmail", mode === "register" ? regEmail : loginEmail)}
+                    onChange={(e) => {
+                      if (mode === "register") {
+                        handleChange("regEmail", e.target.value, setRegEmail);
+                        setLoginEmail(e.target.value);
+                      } else {
+                        handleChange("loginEmail", e.target.value, setLoginEmail);
+                        setRegEmail(e.target.value);
+                      }
+                    }}
                     placeholder={t("auth.email_placeholder")}
-                    className={`w-full rounded-xl text-xs pl-9 pr-4 py-2.5 outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 transition-colors ${
-                      fieldErrors.loginEmail
-                        ? isDark
-                          ? "bg-slate-900/80 border-2 border-rose-500 text-slate-200"
-                          : "bg-slate-50 border-2 border-rose-500 text-slate-900"
-                        : isDark
-                          ? "bg-slate-900/80 border border-slate-800 focus:border-slate-600 text-slate-200"
-                          : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900"
-                    }`}
+                    className={`w-full rounded-xl text-xs pl-9 pr-4 py-2.5 outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 transition-colors ${(mode === "register" ? fieldErrors.regEmail : fieldErrors.loginEmail)
+                      ? "bg-slate-50 border border-rose-500 ring-1 ring-inset ring-rose-500 text-slate-900 dark:bg-slate-900/80 dark:text-slate-200"
+                      : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900 dark:bg-slate-900/80 dark:border-slate-800 dark:focus:border-slate-600 dark:text-slate-200"
+                      }`}
                   />
-                  {fieldErrors.loginEmail && (
+                  {(mode === "register" ? fieldErrors.regEmail : fieldErrors.loginEmail) && (
                     <p className="absolute left-0 -bottom-4 text-[10px] font-medium text-rose-500 whitespace-nowrap">
-                      {fieldErrors.loginEmail}
+                      {mode === "register" ? fieldErrors.regEmail : fieldErrors.loginEmail}
                     </p>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className={`block text-xs font-semibold mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
-                  {t("auth.password")}
-                </label>
+                <div className="relative mb-1.5 h-4 flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    {t("auth.password")}
+                  </label>
+                  {mode === "register" && regPassword && (
+                    <span className="absolute right-0 top-0 text-[10px] font-semibold text-slate-400 pointer-events-none whitespace-nowrap">
+                      {getPasswordStrength(regPassword).percent}% {getPasswordStrength(regPassword).label && `(${getPasswordStrength(regPassword).label})`}
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
-                  <Lock className={`h-4 w-4 absolute left-3 top-3 ${fieldErrors.loginPassword ? "text-rose-500" : isDark ? "text-slate-500" : "text-slate-400"}`} />
+                  <Lock className={`h-4 w-4 absolute left-3 top-3 ${(mode === "register" ? fieldErrors.regPassword : fieldErrors.loginPassword) ? "text-rose-500" : "text-slate-400 dark:text-slate-500"}`} />
                   <input
-                    type={showLoginPassword ? "text" : "password"}
-                    value={loginPassword}
-                    onBlur={() => handleBlur("loginPassword", loginPassword)}
-                    onChange={(e) => handleChange("loginPassword", e.target.value, setLoginPassword)}
+                    type={(mode === "register" ? showRegPassword : showLoginPassword) ? "text" : "password"}
+                    value={mode === "register" ? regPassword : loginPassword}
+                    onBlur={() => handleBlur(mode === "register" ? "regPassword" : "loginPassword", mode === "register" ? regPassword : loginPassword)}
+                    onChange={(e) => {
+                      if (mode === "register") {
+                        handleChange("regPassword", e.target.value, setRegPassword);
+                        setLoginPassword(e.target.value);
+                      } else {
+                        handleChange("loginPassword", e.target.value, setLoginPassword);
+                        setRegPassword(e.target.value);
+                      }
+                    }}
                     placeholder={t("auth.password_placeholder")}
-                    className={`w-full rounded-xl text-xs pl-9 pr-10 py-2.5 outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 transition-colors ${
-                      fieldErrors.loginPassword
-                        ? isDark
-                          ? "bg-slate-900/80 border-2 border-rose-500 text-slate-200"
-                          : "bg-slate-50 border-2 border-rose-500 text-slate-900"
-                        : isDark
-                          ? "bg-slate-900/80 border border-slate-800 focus:border-slate-600 text-slate-200"
-                          : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900"
-                    }`}
+                    className={`w-full rounded-xl text-xs pl-9 ${mode === "register" && getPasswordStrength(regPassword).isValid ? "pr-16" : "pr-10"
+                      } py-2.5 outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 transition-colors ${(mode === "register" ? fieldErrors.regPassword : fieldErrors.loginPassword)
+                        ? "bg-slate-50 border border-rose-500 ring-1 ring-inset ring-rose-500 text-slate-900 dark:bg-slate-900/80 dark:text-slate-200"
+                        : mode === "register" && getPasswordStrength(regPassword).isValid
+                          ? "bg-slate-50 border-2 border-emerald-500 text-slate-900 dark:bg-slate-900/80 dark:text-slate-200"
+                          : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900 dark:bg-slate-900/80 dark:border-slate-800 dark:focus:border-slate-600 dark:text-slate-200"
+                      }`}
                   />
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={() => setShowLoginPassword(!showLoginPassword)}
-                    className={`absolute right-3 top-3 transition-colors ${isDark ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"}`}
-                  >
-                    {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                  {fieldErrors.loginPassword && (
+                  <div className="absolute right-3 top-3 flex items-center gap-1.5">
+                    {mode === "register" && getPasswordStrength(regPassword).isValid && (
+                      <div className="flex items-center justify-center h-4 w-4 rounded-full bg-emerald-500 text-white">
+                        <Check className="h-3 w-3 stroke-[3]" />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => {
+                        if (mode === "register") setShowRegPassword(!showRegPassword);
+                        else setShowLoginPassword(!showLoginPassword);
+                      }}
+                      className="transition-colors text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                    >
+                      {(mode === "register" ? showRegPassword : showLoginPassword) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {(mode === "register" ? fieldErrors.regPassword : fieldErrors.loginPassword) && (
                     <p className="absolute left-0 -bottom-4 text-[10px] font-medium text-rose-500 whitespace-nowrap">
-                      {fieldErrors.loginPassword}
+                      {mode === "register" ? fieldErrors.regPassword : fieldErrors.loginPassword}
                     </p>
                   )}
                 </div>
-                <div className="flex justify-end mt-1.5">
-                  <button
-                    type="button"
-                    onClick={() => switchMode("forgot")}
-                    className="text-[11px] font-medium text-blue-400 hover:underline cursor-pointer"
-                  >
-                    {t("auth.forgot_password")}
-                  </button>
-                </div>
+                {mode === "login" && (
+                  <div className="flex justify-end mt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => switchMode("forgot")}
+                      className="text-[11px] font-medium text-blue-400 hover:underline cursor-pointer"
+                    >
+                      {t("auth.forgot_password")}
+                    </button>
+                  </div>
+                )}
+                {mode === "register" && (
+                  <div className="h-2.5 mt-5 flex items-center">
+                    {regPassword && (
+                      <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden transition-all">
+                        <div
+                          className={`h-full ${getPasswordStrength(regPassword).color} transition-all duration-300`}
+                          style={{ width: `${getPasswordStrength(regPassword).percent}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {errorKey && (
@@ -757,51 +863,54 @@ function UnifiedAuthForm() {
 
               <button
                 type="submit"
-                disabled={lockoutTimer > 0 || loading}
-                className={`w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl border shadow-md transition-all mt-4 ${
-                  lockoutTimer > 0
+                disabled={(mode === "login" && lockoutTimer > 0) || loading}
+                className={`w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl border shadow-md transition-all mt-4 ${mode === "login" && lockoutTimer > 0
                     ? "bg-slate-700 text-slate-400 border-slate-600 cursor-not-allowed"
-                    : isDark
-                      ? "bg-slate-800 hover:bg-slate-700/80 text-white border-slate-700"
-                      : "bg-slate-900 hover:bg-slate-800 text-white border-slate-900"
-                }`}
+                    : "bg-slate-900 hover:bg-slate-800 text-white border-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700/80 dark:border-slate-700"
+                  }`}
               >
-                <span>{lockoutTimer > 0 ? t("auth.account_locked_btn").replace("{seconds}", lockoutTimer.toString()) : t("common.sign_in")}</span>
+                <span>
+                  {mode === "login"
+                    ? (lockoutTimer > 0 ? t("auth.account_locked_btn").replace("{seconds}", lockoutTimer.toString()) : t("common.sign_in"))
+                    : t("auth.create_account_btn") || "สร้างบัญชีใหม่"}
+                </span>
                 <ArrowRight className="h-4 w-4" />
               </button>
             </form>
           ) : mode === "forgot" ? (
             <form onSubmit={handleForgotPasswordSubmit} className="space-y-5" noValidate>
               <div>
-                <label className={`block text-xs font-semibold mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
+                <label className="block text-xs font-semibold mb-1.5 text-slate-700 dark:text-slate-300">
                   {t("auth.email_address")}
                 </label>
                 <div className="relative">
-                  <Mail className={`h-4 w-4 absolute left-3 top-3 ${fieldErrors.loginEmail ? "text-rose-500" : isDark ? "text-slate-500" : "text-slate-400"}`} />
+                  <Mail className={`h-4 w-4 absolute left-3 top-3 ${fieldErrors.forgotEmail ? "text-rose-500" : "text-slate-400 dark:text-slate-500"}`} />
                   <input
                     type="text"
                     value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
+                    onChange={(e) => handleChange("forgotEmail", e.target.value, setForgotEmail)}
+                    onBlur={() => handleBlur("forgotEmail", forgotEmail)}
                     placeholder={t("auth.email_placeholder")}
-                    className={`w-full rounded-xl text-xs pl-9 pr-4 py-2.5 outline-none transition-colors ${
-                      isDark
-                        ? "bg-slate-900/80 border border-slate-800 focus:border-slate-600 text-slate-200"
-                        : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900"
-                    }`}
+                    className={`w-full rounded-xl text-xs pl-9 pr-4 py-2.5 outline-none transition-colors ${fieldErrors.forgotEmail
+                      ? "border-rose-500/80 bg-rose-500/5 focus:border-rose-500 text-rose-500"
+                      : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900 dark:bg-slate-900/80 dark:border-slate-800 dark:focus:border-slate-600 dark:text-slate-200"
+                      }`}
                   />
                 </div>
+                {fieldErrors.forgotEmail && (
+                  <p className="text-[11px] text-rose-500 mt-1 font-medium flex items-center gap-1">
+                    {fieldErrors.forgotEmail}
+                  </p>
+                )}
               </div>
 
               <button
                 type="submit"
                 disabled={loading || !forgotEmail.trim() || forgotCooldown > 0}
-                className={`w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl border shadow-md transition-all mt-4 ${
-                  forgotCooldown > 0
-                    ? "bg-slate-700 text-slate-300 border-slate-600 cursor-not-allowed"
-                    : isDark
-                      ? "bg-slate-800 hover:bg-slate-700/80 text-white border-slate-700"
-                      : "bg-slate-900 hover:bg-slate-800 text-white border-slate-900"
-                } disabled:opacity-50 cursor-pointer`}
+                className={`w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl border shadow-md transition-all mt-4 ${forgotCooldown > 0
+                  ? "bg-slate-700 text-slate-300 border-slate-600 cursor-not-allowed"
+                  : "bg-slate-900 hover:bg-slate-800 text-white border-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700/80 dark:border-slate-700"
+                  } disabled:opacity-50 cursor-pointer`}
               >
                 <span>
                   {loading
@@ -829,191 +938,17 @@ function UnifiedAuthForm() {
               onResendOtp={handleResendOTP}
               onBackToLogin={() => switchMode("login")}
             />
-          ) : (
-            <form onSubmit={handleRegisterSubmit} className="space-y-6" noValidate>
-              <div className="grid grid-cols-2 gap-3 animate-smart-appear overflow-hidden">
-                <div>
-                  <label className={`block text-xs font-semibold mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
-                    {t("auth.firstname")}
-                  </label>
-                  <div className="relative">
-                    <User className={`h-4 w-4 absolute left-3 top-3 ${fieldErrors.firstname ? "text-rose-500" : isDark ? "text-slate-500" : "text-slate-400"}`} />
-                    <input
-                      type="text"
-                      value={firstname}
-                      onBlur={() => handleBlur("firstname", firstname)}
-                      onChange={(e) => handleChange("firstname", e.target.value, setFirstname)}
-                      placeholder={t("auth.firstname_placeholder")}
-                      className={`w-full rounded-xl text-xs pl-9 pr-3 py-2.5 outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 transition-colors ${
-                        fieldErrors.firstname
-                          ? isDark
-                            ? "bg-slate-900/80 border-2 border-rose-500 text-slate-200"
-                            : "bg-slate-50 border-2 border-rose-500 text-slate-900"
-                          : isDark
-                            ? "bg-slate-900/80 border border-slate-800 focus:border-slate-600 text-slate-200"
-                            : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900"
-                      }`}
-                    />
-                    {fieldErrors.firstname && (
-                      <p className="absolute left-0 -bottom-4 text-[10px] font-medium text-rose-500 whitespace-nowrap">
-                        {fieldErrors.firstname}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className={`block text-xs font-semibold mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
-                    {t("auth.lastname")}
-                  </label>
-                  <input
-                    type="text"
-                    value={lastname}
-                    onChange={(e) => setLastname(e.target.value)}
-                    placeholder={t("auth.lastname_placeholder")}
-                    className={`w-full rounded-xl text-xs px-3 py-2.5 outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 transition-colors ${isDark
-                        ? "bg-slate-900/80 border border-slate-800 focus:border-slate-600 text-slate-200"
-                        : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900"
-                      }`}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className={`block text-xs font-semibold mb-1.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
-                  {t("auth.email_address")}
-                </label>
-                <div className="relative">
-                  <Mail className={`h-4 w-4 absolute left-3 top-3 ${fieldErrors.regEmail ? "text-rose-500" : isDark ? "text-slate-500" : "text-slate-400"}`} />
-                  <input
-                    type="text"
-                    value={regEmail}
-                    onBlur={() => handleBlur("regEmail", regEmail)}
-                    onChange={(e) => handleChange("regEmail", e.target.value, setRegEmail)}
-                    placeholder={t("auth.email_placeholder")}
-                    className={`w-full rounded-xl text-xs pl-9 pr-4 py-2.5 outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 transition-colors ${
-                      fieldErrors.regEmail
-                        ? isDark
-                          ? "bg-slate-900/80 border-2 border-rose-500 text-slate-200"
-                          : "bg-slate-50 border-2 border-rose-500 text-slate-900"
-                        : isDark
-                          ? "bg-slate-900/80 border border-slate-800 focus:border-slate-600 text-slate-200"
-                          : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900"
-                    }`}
-                  />
-                  {fieldErrors.regEmail && (
-                    <p className="absolute left-0 -bottom-4 text-[10px] font-medium text-rose-500 whitespace-nowrap">
-                      {fieldErrors.regEmail}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <div className="relative mb-1.5 h-4 flex items-center justify-between">
-                  <label className={`text-xs font-semibold ${isDark ? "text-slate-300" : "text-slate-700"}`}>
-                    {t("auth.password")}
-                  </label>
-                  {regPassword && (
-                    <span className="absolute right-0 top-0 text-[10px] font-semibold text-slate-400 pointer-events-none whitespace-nowrap">
-                      {getPasswordStrength(regPassword).percent}% {getPasswordStrength(regPassword).label && `(${getPasswordStrength(regPassword).label})`}
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  <Lock className={`h-4 w-4 absolute left-3 top-3 ${fieldErrors.regPassword ? "text-rose-500" : isDark ? "text-slate-500" : "text-slate-400"}`} />
-                  <input
-                    type={showRegPassword ? "text" : "password"}
-                    value={regPassword}
-                    onBlur={() => handleBlur("regPassword", regPassword)}
-                    onChange={(e) => handleChange("regPassword", e.target.value, setRegPassword)}
-                    placeholder={t("auth.password_placeholder")}
-                    className={`w-full rounded-xl text-xs pl-9 ${
-                      getPasswordStrength(regPassword).isValid ? "pr-16" : "pr-10"
-                    } py-2.5 outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 transition-colors ${
-                      fieldErrors.regPassword
-                        ? isDark
-                          ? "bg-slate-900/80 border-2 border-rose-500 text-slate-200"
-                          : "bg-slate-50 border-2 border-rose-500 text-slate-900"
-                        : getPasswordStrength(regPassword).isValid
-                          ? isDark
-                            ? "bg-slate-900/80 border-2 border-emerald-500 text-slate-200"
-                            : "bg-slate-50 border-2 border-emerald-500 text-slate-900"
-                          : isDark
-                            ? "bg-slate-900/80 border border-slate-800 focus:border-slate-600 text-slate-200"
-                            : "bg-slate-50 border border-slate-200 focus:border-slate-400 text-slate-900"
-                    }`}
-                  />
-                  <div className="absolute right-3 top-3 flex items-center gap-1.5">
-                    {getPasswordStrength(regPassword).isValid && (
-                      <div className="flex items-center justify-center h-4 w-4 rounded-full bg-emerald-500 text-white">
-                        <Check className="h-3 w-3 stroke-[3]" />
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      tabIndex={-1}
-                      onClick={() => setShowRegPassword(!showRegPassword)}
-                      className={`transition-colors ${isDark ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"}`}
-                    >
-                      {showRegPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  {fieldErrors.regPassword && (
-                    <p className="absolute left-0 -bottom-4 text-[10px] font-medium text-rose-500 whitespace-nowrap">
-                      {fieldErrors.regPassword}
-                    </p>
-                  )}
-                </div>
-                <div className="h-2.5 mt-5 flex items-center">
-                  {regPassword && (
-                    <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden transition-all">
-                      <div
-                        className={`h-full ${getPasswordStrength(regPassword).color} transition-all duration-300`}
-                        style={{ width: `${getPasswordStrength(regPassword).percent}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {errorKey && (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-semibold whitespace-pre-line leading-relaxed">
-                  {(() => {
-                    let text = t(errorKey.key);
-                    if (errorKey.params) {
-                      Object.entries(errorKey.params).forEach(([k, v]) => {
-                        text = text.replace(`{${k}}`, v);
-                      });
-                    }
-                    return text;
-                  })()}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className={`w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl border shadow-md transition-all mt-4 ${
-                  isDark
-                    ? "bg-slate-800 hover:bg-slate-700/80 text-white border-slate-700"
-                    : "bg-slate-900 hover:bg-slate-800 text-white border-slate-900"
-                }`}
-              >
-                <span>{t("auth.create_account")}</span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </form>
-          )}
+          ) : null}
 
           {/* Toggle Helper Footer Link */}
-          <p className={`text-center text-xs mt-6 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+          <p className="text-center text-xs mt-6 text-slate-500 dark:text-slate-400">
             {mode === "verify" || mode === "forgot" ? (
               <button
                 type="button"
                 onClick={() => switchMode("login")}
                 className="font-semibold text-blue-400 hover:underline cursor-pointer"
               >
-                ← {language === "th" ? "กลับไปหน้าเข้าสู่ระบบ" : "Back to Sign In"}
+                ← {t("auth.back_to_signin")}
               </button>
             ) : mode === "login" ? (
               <>
@@ -1047,7 +982,7 @@ function UnifiedAuthForm() {
 
 export default function UnifiedAuthPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0d0f17] flex items-center justify-center"><div className="w-10 h-10 border-4 border-slate-800 border-t-slate-200 rounded-full animate-spin"></div></div>}>
+    <Suspense fallback={null}>
       <UnifiedAuthForm />
     </Suspense>
   );

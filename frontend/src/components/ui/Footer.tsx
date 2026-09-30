@@ -5,10 +5,10 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { LayoutDashboard, Mail } from "lucide-react";
 
 export function Footer() {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
 
   return (
-    <footer className="border-t border-[var(--nav-border)] bg-[var(--background)] text-[var(--muted-foreground)] transition-colors duration-300">
+    <footer key={language} className="border-t border-[var(--nav-border)] bg-[var(--background)] text-[var(--muted-foreground)]">
       <div className="max-w-6xl mx-auto px-6 pt-12 pb-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b border-[var(--card-border)]">
           {/* Brand */}
@@ -75,7 +75,7 @@ export function Footer() {
 
           <div className="flex items-center gap-6 font-medium text-[var(--muted-foreground)]">
             <Link
-              href="/about"
+              href="/about-us"
               className="hover:text-[var(--foreground)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md px-1 py-0.5"
             >
               {t("common.about_us")}

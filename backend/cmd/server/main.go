@@ -43,6 +43,7 @@ func main() {
 	r.POST("/api/auth/email-test", handler.SendTestEmail)
 	r.POST("/api/auth/forgot-password", handler.RequestPasswordReset)
 	r.POST("/api/auth/reset-password", handler.ConfirmPasswordReset)
+	r.GET("/api/auth/validate-reset-token", handler.ValidatePasswordResetToken)
 
 	// Protected API Routes (Session Token required)
 	api := r.Group("/api")

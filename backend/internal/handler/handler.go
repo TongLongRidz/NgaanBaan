@@ -62,10 +62,10 @@ func Register(c *gin.Context) {
 		Email     string `json:"email" binding:"required"`
 		Password  string `json:"password" binding:"required"`
 		Firstname string `json:"firstname" binding:"required"`
-		Lastname  string `json:"lastname"`
+		Lastname  string `json:"lastname" binding:"required"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Firstname) == "" || strings.TrimSpace(req.Lastname) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing required fields"})
 		return
 	}
 
@@ -383,6 +383,31 @@ func ConfirmPasswordReset(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่",
+	})
+}
+
+func ValidatePasswordResetToken(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"valid": false,
+			"error": "ไม่พบโทเค็นรีเซ็ตรหัสผ่าน",
+		})
+		return
+	}
+
+	isValid := repository.ValidatePasswordResetToken(token)
+	if !isValid {
+		c.JSON(http.StatusOK, gin.H{
+			"valid": false,
+			"error": "ลิงก์รีเซ็ตรหัสผ่านนี้หมดอายุแล้ว หรือถูกใช้งานไปแล้ว",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"valid":   true,
+		"message": "โทเค็นถูกต้อง",
 	})
 }
 

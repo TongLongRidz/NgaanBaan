@@ -52,13 +52,23 @@ export function LandingNavbar() {
 
         <Link
           href="/login"
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem("auth_mode", "login");
+            }
+          }}
           className="text-xs font-semibold px-3.5 py-2 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-[var(--card-bg)] text-[var(--foreground)] border-[var(--card-border)] hover:bg-[var(--input-bg)] shadow-xs"
         >
           {t("common.sign_in")}
         </Link>
 
         <Link
-          href="/login?mode=register"
+          href="/login"
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem("auth_mode", "register");
+            }
+          }}
           className="text-xs font-semibold px-4 py-2 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 bg-[var(--primary-btn-bg)] text-[var(--primary-btn-text)] border-[var(--card-border)] hover:opacity-90 shadow-sm"
         >
           {t("common.sign_up")}
@@ -72,9 +82,7 @@ export function LandingNavbar() {
           className={`p-2 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${
             showSettings
               ? "bg-slate-800 text-white border-slate-700"
-              : isDark
-                ? "bg-slate-900 text-slate-300 border-slate-800"
-                : "bg-white text-slate-700 border-slate-200"
+              : "bg-white text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800"
           }`}
           aria-label="Settings Menu"
         >
@@ -83,27 +91,17 @@ export function LandingNavbar() {
 
         <Link
           href="/login"
-          className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${
-            isDark
-              ? "bg-slate-100 text-slate-900 border-slate-100"
-              : "bg-slate-900 text-slate-50 border-slate-900"
-          }`}
+          className="text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 bg-slate-900 text-slate-50 border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100"
         >
           {t("common.sign_in")}
         </Link>
 
         {showSettings && (
-          <div
-            className={`absolute right-4 top-16 w-56 rounded-2xl border shadow-2xl p-3 z-50 transition-all ${
-              isDark ? "bg-[#131625] border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900"
-            }`}
-          >
+          <div className="absolute right-4 top-16 w-56 rounded-2xl border shadow-2xl p-3 z-50 transition-all origin-top-right animate-in fade-in zoom-in-95 duration-200 bg-white border-slate-200 text-slate-900 dark:bg-[#131625] dark:border-slate-800 dark:text-slate-100">
             <div className="space-y-2 text-xs font-medium">
               <button
                 onClick={toggleTheme}
-                className={`w-full flex items-center justify-between p-2 rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${
-                  isDark ? "bg-slate-900/60 border-slate-800 hover:bg-slate-800/80" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
-                }`}
+                className="w-full flex items-center justify-between p-2 rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100 dark:bg-slate-900/60 dark:border-slate-800 dark:hover:bg-slate-800/80"
               >
                 <span className="flex items-center gap-2">
                   {isDark ? <Moon className="h-3.5 w-3.5 text-amber-400" /> : <Sun className="h-3.5 w-3.5 text-amber-500" />}
@@ -114,9 +112,7 @@ export function LandingNavbar() {
 
               <button
                 onClick={toggleLanguage}
-                className={`w-full flex items-center justify-between p-2 rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 ${
-                  isDark ? "bg-slate-900/60 border-slate-800 hover:bg-slate-800/80" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
-                }`}
+                className="w-full flex items-center justify-between p-2 rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100 dark:bg-slate-900/60 dark:border-slate-800 dark:hover:bg-slate-800/80"
               >
                 <span className="flex items-center gap-2">
                   <Globe className="h-3.5 w-3.5 text-slate-400" />

@@ -16,25 +16,43 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-function InternalThemeProvider({ children }: { children: React.ReactNode }) {
+function getInitialTheme(): Theme {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark" || saved === "light") {
+      return saved;
+    }
+    if (document.documentElement.classList.contains("dark")) {
+      return "dark";
+    }
+    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      return "dark";
+    }
+  }
+  return "light";
+}
+
+function InternalThemeProvider({ children, initialTheme }: { children: React.ReactNode; initialTheme?: Theme }) {
   const { theme: nextTheme, setTheme: setNextTheme, resolvedTheme } = useNextTheme();
   const [mounted, setMounted] = useState(false);
-  const [currentTheme, setCurrentThemeState] = useState<Theme>("light");
+  const [currentTheme, setCurrentThemeState] = useState<Theme>(initialTheme || getInitialTheme);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
     const active = (resolvedTheme || nextTheme) as Theme;
     if (active && (active === "dark" || active === "light")) {
       setCurrentThemeState(active);
     }
-  }, [nextTheme, resolvedTheme, mounted]);
+  }, [nextTheme, resolvedTheme]);
 
   const setTheme = (newTheme: Theme) => {
     setNextTheme(newTheme);
+    if (typeof window !== "undefined") {
+      document.cookie = `theme=${newTheme}; path=/; max-age=31536000; SameSite=Lax`;
+    }
   };
 
   const toggleTheme = (e?: React.MouseEvent) => {
@@ -88,15 +106,16 @@ function InternalThemeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({ children, initialTheme }: { children: React.ReactNode; initialTheme?: Theme }) {
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="system"
-      enableSystem={true}
+      defaultTheme={initialTheme || "light"}
+      enableSystem={false}
       storageKey="theme"
+      scriptProps={{ id: "next-theme-script" }}
     >
-      <InternalThemeProvider>{children}</InternalThemeProvider>
+      <InternalThemeProvider initialTheme={initialTheme}>{children}</InternalThemeProvider>
     </NextThemesProvider>
   );
 }

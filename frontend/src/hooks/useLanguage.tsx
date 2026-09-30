@@ -6,8 +6,6 @@ import th from "../locales/th.json";
 
 type Language = "en" | "th";
 
-type Translations = typeof en;
-
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
@@ -22,21 +20,45 @@ const translationsMap: Record<Language, any> = {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
+function getInitialLanguage(): Language {
+  if (typeof window !== "undefined") {
+    const cookieMatch = document.cookie.match(/(?:^|; )language=([^;]*)/);
+    if (cookieMatch) {
+      const cookieLang = decodeURIComponent(cookieMatch[1]);
+      if (cookieLang === "en" || cookieLang === "th") {
+        return cookieLang as Language;
+      }
+    }
+    const savedLang = localStorage.getItem("language");
+    if (savedLang === "en" || savedLang === "th") {
+      return savedLang as Language;
+    }
+  }
+  return "th";
+}
+
+export function LanguageProvider({ children, initialLanguage }: { children: React.ReactNode; initialLanguage?: Language }) {
   const [mounted, setMounted] = useState(false);
-  const [language, setLanguageState] = useState<Language>("th");
+  const [language, setLanguageState] = useState<Language>(initialLanguage || getInitialLanguage);
 
   useEffect(() => {
     setMounted(true);
-    const savedLang = localStorage.getItem("language") as Language | null;
-    if (savedLang === "en" || savedLang === "th") {
-      setLanguageState(savedLang);
-    }
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "language" && (e.newValue === "en" || e.newValue === "th")) {
+        setLanguageState(e.newValue);
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem("language", lang);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("language", lang);
+      document.cookie = `language=${lang}; path=/; max-age=31536000; SameSite=Lax`;
+    }
   };
 
   const toggleLanguage = () => {
@@ -47,22 +69,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   // Support dot-notation keys like t("common.brand") or t("landing.hero_title_1")
   const t = (keyPath: string): string => {
     const keys = keyPath.split(".");
-    let current: any = translationsMap[language] || translationsMap["en"];
+    let current: any = translationsMap[language];
 
     for (const key of keys) {
       if (current && current[key] !== undefined) {
         current = current[key];
       } else {
-        // Fallback to English if missing in target language
-        let fallback: any = translationsMap["en"];
-        for (const fk of keys) {
-          if (fallback && fallback[fk] !== undefined) {
-            fallback = fallback[fk];
-          } else {
-            return keyPath;
-          }
-        }
-        return typeof fallback === "string" ? fallback : keyPath;
+        return keyPath;
       }
     }
 

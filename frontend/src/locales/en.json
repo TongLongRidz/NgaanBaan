@@ -22,7 +22,16 @@
     "about_us": "About Us",
     "about_us_desc": "A modern Kanban task management platform designed to help teams track progress, organize workflows, and boost productivity seamlessly in one place.",
     "privacy_policy": "Privacy Policy",
-    "terms_of_service": "Terms of Service"
+    "terms_of_service": "Terms of Service",
+    "back_home": "Back to Home"
+  },
+  "not_found": {
+    "title": "Page Not Found",
+    "description": "The page you are looking for could not be found.",
+    "btn_return_projects": "Return to Projects",
+    "btn_return_home": "Return to Home Page",
+    "status_checking": "Checking session...",
+    "code": "404"
   },
   "nav": {
     "home": "Home",
@@ -120,6 +129,7 @@
     "forgot_password": "Forgot?",
     "dont_have_account": "Don't have an account?",
     "create_account": "Create an Account",
+    "create_account_btn": "Create Account",
     "register_subtitle": "Register and get started!",
     "firstname": "First Name",
     "lastname": "Last Name",
@@ -129,6 +139,7 @@
     "password_required": "Password is required",
     "password_min_length": "Password must be at least 8 characters",
     "firstname_required": "First name is required",
+    "lastname_required": "Last name is required",
     "email_placeholder": "name@example.com",
     "password_placeholder": "••••••••",
     "firstname_placeholder": "John",
@@ -144,15 +155,21 @@
     "account_locked": "Login temporarily suspended for {seconds} seconds.\nDue to multiple incorrect password attempts.",
     "account_locked_btn": "Locked ({seconds}s)",
     "verify_email_title": "Verify Your Email",
-    "verify_email_subtitle": "Enter 6-digit OTP code or click verification link sent to {email}",
-    "otp_placeholder": "Enter 6-digit OTP",
+    "verify_email_subtitle": "Click send code to receive a 6-digit OTP code & link at your email",
+    "verify_subtitle": "Click send code to receive a 6-digit OTP code & link at",
+    "otp_placeholder": "Enter 6-digit OTP Code",
     "verify_otp_btn": "Verify OTP Code",
     "resend_otp_btn": "Resend Code ({seconds}s)",
     "resend_otp_ready": "Click to Send OTP",
     "verify_or_link": "Or click link to open in browser",
     "copy_link_btn": "Copy Verification Link",
     "verification_success": "Email verified successfully!",
-    "unverified_notice": "Email address is not yet verified"
+    "unverified_notice": "Email address is not yet verified",
+    "back_to_signin": "Back to Sign In",
+    "strength_very_weak": "Very Weak",
+    "strength_medium": "Medium",
+    "strength_good": "Good",
+    "strength_strong": "Strong"
   },
   "tasks": {
     "title": "My Tasks",
@@ -213,5 +230,45 @@
     "cancel": "Cancel",
     "send_invitation": "Send Invitation",
     "pending_invite": "Pending Invite"
+  },
+  "about": {
+    "mission_title": "Our Mission",
+    "mission_desc": "Empower team task management with a simple, powerful, and accessible Kanban platform without limits.",
+    "collab_title": "Team Collaboration",
+    "collab_desc": "Designed to help all team members track task statuses, add subtask checklists, and stay synchronized effortless.",
+    "simplicity_title": "Simplicity & Security",
+    "simplicity_desc": "Focusing on intuitive user interface and secure features so you can fully dedicate your focus to task execution."
+  },
+  "terms": {
+    "last_updated": "Last updated: September 2026",
+    "sec1_title": "1. Terms of Service Usage",
+    "sec1_desc": "By accessing and using NgaanBaan, you agree to comply with and be bound by these Terms of Service. Our platform is created to facilitate effective task management and team collaboration.",
+    "sec2_title": "2. User Accounts & Responsibilities",
+    "sec2_desc": "Users are responsible for maintaining the confidentiality of their account credentials and are fully accountable for all activities conducted under their account.",
+    "sec3_title": "3. Service Modifications",
+    "sec3_desc": "We reserve the right to modify, upgrade, or enhance system functionality continuously to provide optimized task management performance for our users."
+  },
+  "privacy": {
+    "sec1_title": "1. Information We Collect",
+    "sec1_desc": "We collect information strictly required for user registration and workspace usage, such as your name, email address, and task data to provide our Kanban service effectively.",
+    "sec2_title": "2. Data Protection & Security",
+    "sec2_desc": "Your personal and workspace data is safeguarded with strict industry security standards. We strictly do not sell, rent, or trade your personal information with third parties.",
+    "sec3_title": "3. User Rights",
+    "sec3_desc": "Users retain full ownership and rights to access, update, or delete their personal account information and task data anytime via workspace settings."
+  },
+  "reset": {
+    "title": "Reset Your Password",
+    "subtitle": "Enter your new password below",
+    "new_password": "New Password",
+    "new_password_placeholder": "New password (at least 8 characters)",
+    "confirm_password": "Confirm New Password",
+    "confirm_password_placeholder": "Re-enter new password",
+    "saving": "Saving...",
+    "submit_btn": "Confirm New Password",
+    "token_missing": "Reset token is missing. Please request a new link.",
+    "passwords_mismatch": "Passwords do not match",
+    "failed": "Failed to reset password",
+    "success_title": "Password Changed Successfully!",
+    "success_desc": "Please sign in with your new password."
   }
 }

@@ -20,12 +20,17 @@ type ResendEmailPayload struct {
 }
 
 // BuildCustomEmailHTML creates a professional, clean, emoji-free HTML email template
-func BuildCustomEmailHTML(title, content, otpCode, verifyLink string) string {
+func BuildCustomEmailHTML(title, content, otpCode, verifyLink string, buttonText ...string) string {
 	if title == "" {
 		title = "ยืนยันที่อยู่อีเมลของคุณ"
 	}
 	if content == "" {
 		content = "ขอบคุณสำหรับการสมัครใช้งาน NgaanBaan (งานบาน) กรุณาใช้รหัส OTP ด้านล่างนี้เพื่อยืนยันตัวตนของคุณ:"
+	}
+
+	btnText := "ยืนยันอีเมลของคุณ"
+	if len(buttonText) > 0 && buttonText[0] != "" {
+		btnText = buttonText[0]
 	}
 
 	otpSection := ""
@@ -50,10 +55,10 @@ func BuildCustomEmailHTML(title, content, otpCode, verifyLink string) string {
 		linkSection = fmt.Sprintf(`
 			<div style="text-align: center; margin-top: 24px;">
 				<a href="%s" target="_blank" style="display: inline-block; background-color: #0f172a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 32px; border-radius: 8px; transition: background-color 0.2s ease;">
-					ยืนยันอีเมลของคุณ
+					%s
 				</a>
 			</div>
-		`, verifyLink)
+		`, verifyLink, btnText)
 	}
 
 	return fmt.Sprintf(`<!DOCTYPE html>
@@ -113,11 +118,15 @@ func BuildCustomEmailHTML(title, content, otpCode, verifyLink string) string {
 }
 
 // SendCustomEmail dispatches any email with specified title, content, recipient, otpCode, verifyLink
-func SendCustomEmail(recipientEmail, subject, title, content, otpCode, verifyLink string) error {
+func SendCustomEmail(recipientEmail, subject, title, content, otpCode, verifyLink string, buttonText ...string) error {
 	if subject == "" {
 		subject = "รหัสยืนยันตัวตนอีเมลของคุณ - NgaanBaan"
 	}
-	htmlBody := BuildCustomEmailHTML(title, content, otpCode, verifyLink)
+	bText := ""
+	if len(buttonText) > 0 {
+		bText = buttonText[0]
+	}
+	htmlBody := BuildCustomEmailHTML(title, content, otpCode, verifyLink, bText)
 
 	smtpUser := os.Getenv("SMTP_USER")
 	smtpPass := os.Getenv("SMTP_PASS")
@@ -145,7 +154,7 @@ func SendVerificationEmail(recipientEmail, otpCode, verificationToken string) er
 	title := "ยืนยันที่อยู่อีเมลของคุณ"
 	content := "ขอบคุณสำหรับการสมัครใช้งาน NgaanBaan (งานบาน) กรุณาใช้รหัส OTP ด้านล่างนี้เพื่อยืนยันตัวตนของคุณ:"
 
-	return SendCustomEmail(recipientEmail, subject, title, content, otpCode, verifyLink)
+	return SendCustomEmail(recipientEmail, subject, title, content, otpCode, verifyLink, "ยืนยันอีเมลของคุณ")
 }
 
 // SendPasswordResetEmail sends password reset link email
@@ -159,7 +168,7 @@ func SendPasswordResetEmail(recipientEmail, resetToken string) error {
 	title := "รีเซ็ตรหัสผ่านของคุณ"
 	content := "เราได้รับคำขอรีเซ็ตรหัสผ่านสำหรับบัญชีของคุณ กรุณาคลิกปุ่มด้านล่างเพื่อตั้งรหัสผ่านใหม่ (ลิงก์นี้มีอายุ 1 ชั่วโมง):"
 
-	return SendCustomEmail(recipientEmail, subject, title, content, "", resetLink)
+	return SendCustomEmail(recipientEmail, subject, title, content, "", resetLink, "รีเซ็ตรหัสผ่าน")
 }
 
 func sendViaSMTPCustom(recipientEmail, subject, htmlBody, smtpUser, smtpPass string) error {
