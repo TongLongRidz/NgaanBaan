@@ -1,101 +1,124 @@
 "use client";
 
-import React, { useState } from "react";
+import { FolderKanban, Grid, Users } from "lucide-react";
 import Link from "next/link";
-import { useLanguage } from "@/hooks/useLanguage";
+import { useEffect, useState } from "react";
 import { TopNavbar } from "@/components/ui/TopNavbar";
-import { EmptyProjectState } from "@/components/ui/EmptyProjectState";
-import { Users, Grid } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface Project {
-  id: string;
-  title: string;
-  description: string;
-  members_count: number;
-  updated_at: string;
+	id: string;
+	title: string;
+	description: string;
+	members_count: number;
+	updated_at: string;
 }
 
-const SHARED_PROJECTS: Project[] = [
-  {
-    id: "f47ac10b-58cc-4372-a567-0e02b2c3d4e5",
-    title: "UI/UX Redesign Project",
-    description: "Design system migration, glassmorphism components, and dark mode theme implementation.",
-    members_count: 2,
-    updated_at: "Updated 2 hours ago"
-  }
-];
-
 export default function SharedProjectsPage() {
-  const { t } = useLanguage();
-  const [projects] = useState<Project[]>(SHARED_PROJECTS);
+	const { t } = useLanguage();
+	const [projects, setProjects] = useState<Project[]>([]);
+	const [loading, setLoading] = useState(true);
 
-  return (
-    <>
-      <TopNavbar />
+	useEffect(() => {
+		const fetchSharedProjects = async () => {
+			try {
+				const apiUrl =
+					process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+				const res = await fetch(`${apiUrl}/api/projects`, {
+					credentials: "include",
+				});
+				if (res.ok) {
+					const data = await res.json();
+					if (Array.isArray(data)) {
+						const sharedOnly = data.filter(
+							(p: any) => p.role && p.role !== "owner",
+						);
+						setProjects(sharedOnly);
+					}
+				}
+			} catch (err) {
+				console.error("Failed to fetch shared projects:", err);
+			} finally {
+				setLoading(false);
+			}
+		};
 
-      <main className="flex-1 p-6 md:p-8 flex flex-col min-h-[calc(100vh-64px)]">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
-              <Users className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="font-bold text-xl leading-none text-[var(--foreground)]">
-                {t("nav.shared_with_me") || "Shared with me"}
-              </h2>
-            </div>
-          </div>
-        </div>
+		fetchSharedProjects();
+	}, []);
 
-        {projects.length === 0 && (
-          <EmptyProjectState
-            title={t("empty.no_shared_projects")}
-            description={t("empty.no_shared_desc")}
-            showCreateButton={false}
-          />
-        )}
+	return (
+		<>
+			<TopNavbar />
 
-        {projects.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {projects.map((project) => (
-              <Link
-                key={project.id}
-                href={`/projects/${project.id}`}
-                className="group p-5 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] hover:border-indigo-500/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="h-8 w-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
-                      <Grid className="h-4 w-4" />
-                    </div>
-                    <span className="text-[10px] font-medium text-[var(--muted-foreground)] px-2.5 py-1 rounded-full bg-[var(--input-bg)] border border-[var(--card-border)]">
-                      {project.updated_at}
-                    </span>
-                  </div>
+			<main className="flex-1 p-6 md:p-8 flex flex-col min-h-[calc(100vh-64px)]">
+				<div className="flex items-center justify-between mb-8">
+					<div className="flex items-center gap-3">
+						<div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+							<Users className="h-4 w-4" />
+						</div>
+						<div>
+							<h2 className="font-bold text-xl leading-none text-[var(--foreground)]">
+								{t("nav.shared_with_me") || "Shared with me"}
+							</h2>
+						</div>
+					</div>
+				</div>
 
-                  <h3 className="font-bold text-base text-[var(--foreground)] group-hover:text-indigo-400 transition-colors mb-2">
-                    {project.title}
-                  </h3>
+				{projects.length === 0 && (
+					<div className="flex flex-col items-center justify-center py-12 px-4 text-center my-auto w-full">
+						<div className="w-12 h-12 rounded-xl bg-[var(--input-bg)] border border-[var(--card-border)] flex items-center justify-center text-[var(--muted-foreground)] mb-3.5 shadow-xs">
+							<FolderKanban className="w-5 h-5 opacity-70" />
+						</div>
+						<h3 className="font-bold text-base md:text-lg text-[var(--foreground)] tracking-tight mb-1">
+							{t("empty.no_shared_projects")}
+						</h3>
+						<p className="text-xs text-[var(--muted-foreground)] max-w-[320px] sm:max-w-md mb-5 leading-relaxed whitespace-pre-line">
+							{t("empty.no_shared_desc")}
+						</p>
+					</div>
+				)}
 
-                  <p className="text-xs text-[var(--muted-foreground)] line-clamp-2 mb-4 leading-relaxed">
-                    {project.description}
-                  </p>
-                </div>
+				{projects.length > 0 && (
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+						{projects.map((project) => (
+							<Link
+								key={project.id}
+								href={`/projects/${project.id}`}
+								className="group p-5 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] hover:border-indigo-500/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+							>
+								<div>
+									<div className="flex items-start justify-between gap-3 mb-3">
+										<div className="h-8 w-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
+											<Grid className="h-4 w-4" />
+										</div>
+										<span className="text-[10px] font-medium text-[var(--muted-foreground)] px-2.5 py-1 rounded-full bg-[var(--input-bg)] border border-[var(--card-border)]">
+											{project.updated_at}
+										</span>
+									</div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-[var(--card-border)] text-xs text-[var(--muted-foreground)]">
-                  <div className="flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5" />
-                    <span>{project.members_count} members</span>
-                  </div>
-                  <span className="text-indigo-400 font-semibold text-[11px] group-hover:translate-x-1 transition-transform">
-                    Open →
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </main>
-    </>
-  );
+									<h3 className="font-bold text-base text-[var(--foreground)] group-hover:text-indigo-400 transition-colors mb-2">
+										{project.title}
+									</h3>
+
+									<p className="text-xs text-[var(--muted-foreground)] line-clamp-2 mb-4 leading-relaxed">
+										{project.description}
+									</p>
+								</div>
+
+								<div className="flex items-center justify-between pt-3 border-t border-[var(--card-border)] text-xs text-[var(--muted-foreground)]">
+									<div className="flex items-center gap-1.5">
+										<Users className="h-3.5 w-3.5" />
+										<span>{project.members_count} members</span>
+									</div>
+									<span className="text-indigo-400 font-semibold text-[11px] group-hover:translate-x-1 transition-transform">
+										Open →
+									</span>
+								</div>
+							</Link>
+						))}
+					</div>
+				)}
+			</main>
+		</>
+	);
 }

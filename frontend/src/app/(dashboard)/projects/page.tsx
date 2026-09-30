@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function BoardsRedirectPage() {
-  const router = useRouter();
+	const router = useRouter();
 
-  useEffect(() => {
-    router.replace("/projects/recent");
-  }, [router]);
+	useEffect(() => {
+		router.replace("/projects/recent");
+	}, [router]);
 
-  return null;
+	return null;
 }

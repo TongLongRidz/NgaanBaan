@@ -5,6 +5,7 @@ import (
 	"backend/internal/repository"
 	"backend/internal/service"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -52,6 +53,17 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		// Block unverified users from accessing protected endpoints except for OTP verification & resend
+		path := c.Request.URL.Path
+		if !user.IsEmailVerified && path != "/api/auth/verify-otp" && path != "/api/auth/resend-otp" && path != "/api/auth/me" {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "Email verification required",
+				"user":  user,
+			})
+			c.Abort()
+			return
+		}
+
 		c.Set("user", user)
 		c.Next()
 	}
@@ -78,10 +90,6 @@ func Register(c *gin.Context) {
 	otp, token, _ := repository.CreateVerificationCode(user.ID)
 
 	accessToken, expiresIn, _ := service.GenerateAccessToken(user.ID, user.Email)
-	plainRefreshToken, _ := repository.CreateRefreshToken(user.ID)
-
-	c.SetCookie("refresh_token", plainRefreshToken, 60*60*24*7, "/api/auth", "", false, true)
-	c.SetCookie("user_session_id", plainRefreshToken, 60*60*24*7, "/", "", false, true)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"access_token":       accessToken,
@@ -139,15 +147,13 @@ func Login(c *gin.Context) {
 
 	var otp, token string
 
-	// Always set session cookies so user can call protected endpoints like resend-otp
-	plainRefreshToken, _ := repository.CreateRefreshToken(user.ID)
-	c.SetCookie("refresh_token", plainRefreshToken, 60*60*24*7, "/api/auth", "", false, true)
-	c.SetCookie("user_session_id", plainRefreshToken, 60*60*24*7, "/", "", false, true)
-
-	if !user.IsEmailVerified {
+	if (user.IsEmailVerified) {
+		plainRefreshToken, _ := repository.CreateRefreshToken(user.ID)
+		c.SetCookie("refresh_token", plainRefreshToken, 60*60*24*7, "/api/auth", "", false, true)
+		c.SetCookie("user_session_id", plainRefreshToken, 60*60*24*7, "/", "", false, true)
+	} else {
 		otp, token, _ = repository.CreateVerificationCode(user.ID)
 	}
-
 
 	c.JSON(http.StatusOK, gin.H{
 		"access_token":       accessToken,
@@ -235,7 +241,11 @@ func VerifyOTP(c *gin.Context) {
 		return
 	}
 
+	ipAddress := c.ClientIP()
+	userAgent := c.GetHeader("User-Agent")
+
 	if err := repository.VerifyOTPCode(user.ID, req.OTPCode); err != nil {
+		repository.RecordLoginAttempt(user.Email, "", ipAddress, userAgent, false, "OTP verification failed: "+err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -249,8 +259,9 @@ func VerifyOTP(c *gin.Context) {
 
 	newAccessToken, expiresIn, _ := service.GenerateAccessToken(user.ID, user.Email)
 
-	// MongoDB Audit Log for Email Verification
-	go repository.RecordEmailVerificationLog(user.ID, user.Email, "otp", c.ClientIP(), c.GetHeader("User-Agent"))
+	// MongoDB Audit Logs (Both login_audit_logs and email_verification_logs)
+	repository.RecordLoginAttempt(user.Email, "", ipAddress, userAgent, true, "OTP verification & login successful")
+	go repository.RecordEmailVerificationLog(user.ID, user.Email, "otp", ipAddress, userAgent)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":      "Email verified successfully",
@@ -268,6 +279,9 @@ func VerifyTokenLink(c *gin.Context) {
 		return
 	}
 
+	ipAddress := c.ClientIP()
+	userAgent := c.GetHeader("User-Agent")
+
 	user, err := repository.VerifyToken(token)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -281,8 +295,9 @@ func VerifyTokenLink(c *gin.Context) {
 
 	newAccessToken, expiresIn, _ := service.GenerateAccessToken(user.ID, user.Email)
 
-	// MongoDB Audit Log for Email Verification via Link
-	go repository.RecordEmailVerificationLog(user.ID, user.Email, "link", c.ClientIP(), c.GetHeader("User-Agent"))
+	// MongoDB Audit Logs (Both login_audit_logs and email_verification_logs)
+	repository.RecordLoginAttempt(user.Email, "", ipAddress, userAgent, true, "Email link verification & login successful")
+	go repository.RecordEmailVerificationLog(user.ID, user.Email, "link", ipAddress, userAgent)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":      "Email verified successfully via link",
@@ -422,7 +437,10 @@ func GetMe(c *gin.Context) {
 }
 
 func GetProjects(c *gin.Context) {
-	projects, err := repository.GetAllProjects()
+	userVal, _ := c.Get("user")
+	user := userVal.(*model.User)
+
+	projects, err := repository.GetUserProjects(user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -449,16 +467,29 @@ func CreateProject(c *gin.Context) {
 		return
 	}
 
+	_ = repository.TrackProjectView(user.ID, project.ID)
+
 	c.JSON(http.StatusCreated, project)
 }
 
 func GetProjectByID(c *gin.Context) {
 	id := c.Param("id")
-	project, err := repository.GetProjectByID(id)
+
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+	user := userVal.(*model.User)
+
+	// Fetch project ONLY if current user is a member in project_members
+	project, err := repository.GetUserProjectByID(id, user.ID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
 		return
 	}
+
+	_ = repository.TrackProjectView(user.ID, id)
 
 	columns, _ := repository.GetProjectColumns(id)
 	activities, _ := repository.GetProjectActivities(id)
@@ -469,6 +500,42 @@ func GetProjectByID(c *gin.Context) {
 		"columns":    columns,
 		"activities": activities,
 		"members":    members,
+	})
+}
+
+func GetRecentProjects(c *gin.Context) {
+	userVal, _ := c.Get("user")
+	user := userVal.(*model.User)
+
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page := 1
+	limit := 10
+	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+		page = p
+	}
+	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+		limit = l
+	}
+
+	projects, total, err := repository.GetUserRecentProjects(user.ID, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	totalPages := (total + limit - 1) / limit
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"projects":    projects,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+		"total_pages": totalPages,
 	})
 }
 
@@ -538,6 +605,78 @@ func SendTestEmail(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Email sent successfully",
 		"preview_html": service.BuildCustomEmailHTML(req.Title, req.Content, req.OTPCode, req.VerifyLink),
+	})
+}
+
+func CreateProjectInviteLink(c *gin.Context) {
+	projectID := c.Param("id")
+	var req struct {
+		Role string `json:"role"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || (req.Role != "Editor" && req.Role != "Viewer") {
+		req.Role = "Editor"
+	}
+
+	userVal, _ := c.Get("user")
+	user := userVal.(*model.User)
+
+	token, _ := service.GenerateSecureToken(16)
+	inv, err := repository.CreateProjectInvitation(projectID, user.ID, strings.ToLower(req.Role), token)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token":      inv.Token,
+		"role":       inv.Role,
+		"expires_at": inv.ExpiresAt,
+	})
+}
+
+func ValidateInviteToken(c *gin.Context) {
+	token := c.Param("token")
+	inv, err := repository.GetInvitationByToken(token)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired invitation link"})
+		return
+	}
+
+	proj, err := repository.GetProjectByID(inv.ProjectID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"project_id":   proj.ID,
+		"project_name": proj.Title,
+		"role":         inv.Role,
+		"expires_at":   inv.ExpiresAt,
+	})
+}
+
+func JoinProjectByToken(c *gin.Context) {
+	token := c.Param("token")
+	userVal, _ := c.Get("user")
+	user := userVal.(*model.User)
+
+	inv, err := repository.GetInvitationByToken(token)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired invitation link"})
+		return
+	}
+
+	err = repository.AcceptProjectInvitation(user.ID, inv.ProjectID, inv.Role)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "Successfully joined project",
+		"project_id": inv.ProjectID,
+		"role":       inv.Role,
 	})
 }
 

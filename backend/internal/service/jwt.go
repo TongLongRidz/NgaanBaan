@@ -1,6 +1,8 @@
 package service
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"os"
 	"time"
@@ -67,3 +69,13 @@ func ValidateAccessToken(tokenStr string) (*JWTClaims, error) {
 
 	return claims, nil
 }
+
+// GenerateSecureToken generates a random secure hex token string of length n bytes
+func GenerateSecureToken(nBytes int) (string, error) {
+	bytes := make([]byte, nBytes)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+

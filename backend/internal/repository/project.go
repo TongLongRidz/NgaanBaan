@@ -5,14 +5,16 @@ import (
 	"github.com/lib/pq"
 )
 
-func GetAllProjects() ([]model.Project, error) {
+func GetUserProjects(userID string) ([]model.Project, error) {
 	query := `
-		SELECT p.id, p.owner_id, p.title, COALESCE(p.description, ''), p.icon_emoji, p.created_at, p.updated_at,
-		       (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id) + 1 AS members_count
+		SELECT p.id, p.title, COALESCE(p.description, ''), pm.role, p.created_at, p.updated_at,
+		       (SELECT COUNT(*) FROM project_members pm2 WHERE pm2.project_id = p.id) AS members_count
 		FROM projects p
+		JOIN project_members pm ON p.id = pm.project_id
+		WHERE pm.user_id = $1
 		ORDER BY p.updated_at DESC
 	`
-	rows, err := DB.Query(query)
+	rows, err := DB.Query(query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -21,7 +23,7 @@ func GetAllProjects() ([]model.Project, error) {
 	projects := []model.Project{}
 	for rows.Next() {
 		var p model.Project
-		if err := rows.Scan(&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.IconEmoji, &p.CreatedAt, &p.UpdatedAt, &p.MembersCount); err != nil {
+		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.Role, &p.CreatedAt, &p.UpdatedAt, &p.MembersCount); err != nil {
 			return nil, err
 		}
 		projects = append(projects, p)
@@ -32,16 +34,24 @@ func GetAllProjects() ([]model.Project, error) {
 func CreateProject(title, description, ownerID string) (*model.Project, error) {
 	var p model.Project
 	query := `
-		INSERT INTO projects (owner_id, title, description, icon_emoji)
-		VALUES ($1, $2, $3, '📋')
-		RETURNING id, owner_id, title, COALESCE(description, ''), icon_emoji, created_at, updated_at
+		INSERT INTO projects (title, description)
+		VALUES ($1, $2)
+		RETURNING id, title, COALESCE(description, ''), created_at, updated_at
 	`
-	err := DB.QueryRow(query, ownerID, title, description).Scan(
-		&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.IconEmoji, &p.CreatedAt, &p.UpdatedAt,
+	err := DB.QueryRow(query, title, description).Scan(
+		&p.ID, &p.Title, &p.Description, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
+
+	// Add creator as 'owner' in project_members table
+	memberQuery := `
+		INSERT INTO project_members (project_id, user_id, role)
+		VALUES ($1, $2, 'owner')
+	`
+	_, _ = DB.Exec(memberQuery, p.ID, ownerID)
+
 	p.MembersCount = 1
 	return &p, nil
 }
@@ -49,12 +59,28 @@ func CreateProject(title, description, ownerID string) (*model.Project, error) {
 func GetProjectByID(id string) (*model.Project, error) {
 	var p model.Project
 	query := `
-		SELECT p.id, p.owner_id, p.title, COALESCE(p.description, ''), p.icon_emoji, p.created_at, p.updated_at,
-		       (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id) + 1 AS members_count
+		SELECT p.id, p.title, COALESCE(p.description, ''), p.created_at, p.updated_at,
+		       (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id) AS members_count
 		FROM projects p
 		WHERE p.id = $1
 	`
-	err := DB.QueryRow(query, id).Scan(&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.IconEmoji, &p.CreatedAt, &p.UpdatedAt, &p.MembersCount)
+	err := DB.QueryRow(query, id).Scan(&p.ID, &p.Title, &p.Description, &p.CreatedAt, &p.UpdatedAt, &p.MembersCount)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func GetUserProjectByID(projectID, userID string) (*model.Project, error) {
+	var p model.Project
+	query := `
+		SELECT p.id, p.title, COALESCE(p.description, ''), pm.role, p.created_at, p.updated_at,
+		       (SELECT COUNT(*) FROM project_members pm2 WHERE pm2.project_id = p.id) AS members_count
+		FROM projects p
+		JOIN project_members pm ON p.id = pm.project_id
+		WHERE p.id = $1 AND pm.user_id = $2
+	`
+	err := DB.QueryRow(query, projectID, userID).Scan(&p.ID, &p.Title, &p.Description, &p.Role, &p.CreatedAt, &p.UpdatedAt, &p.MembersCount)
 	if err != nil {
 		return nil, err
 	}
@@ -251,15 +277,11 @@ func GetProjectActivities(projectID string) ([]model.ProjectActivity, error) {
 
 func GetProjectMembers(projectID string) ([]model.ProjectMember, error) {
 	query := `
-		SELECT p.id, u.id, u.firstname || ' ' || COALESCE(u.lastname, ''), u.email, 'Owner', COALESCE(u.avatar_url, ''), 'Active', u.created_at
-		FROM projects p
-		JOIN users u ON p.owner_id = u.id
-		WHERE p.id = $1
-		UNION
 		SELECT pm.project_id, u.id, u.firstname || ' ' || COALESCE(u.lastname, ''), u.email, pm.role, COALESCE(u.avatar_url, ''), 'Active', pm.created_at
 		FROM project_members pm
 		JOIN users u ON pm.user_id = u.id
 		WHERE pm.project_id = $1
+		ORDER BY CASE WHEN pm.role = 'owner' THEN 1 WHEN pm.role = 'editor' THEN 2 ELSE 3 END, pm.created_at ASC
 	`
 	rows, err := DB.Query(query, projectID)
 	if err != nil {
@@ -286,8 +308,8 @@ func ToggleSubtask(subtaskID string) error {
 
 func GetStarredProjects(userID string) ([]model.Project, error) {
 	query := `
-		SELECT p.id, p.owner_id, p.title, COALESCE(p.description, ''), p.icon_emoji, p.created_at, p.updated_at,
-		       (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id) + 1 AS members_count
+		SELECT p.id, p.title, COALESCE(p.description, ''), p.created_at, p.updated_at,
+		       (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id) AS members_count
 		FROM user_starred_projects usp
 		JOIN projects p ON usp.project_id = p.id
 		WHERE usp.user_id = $1
@@ -302,7 +324,7 @@ func GetStarredProjects(userID string) ([]model.Project, error) {
 	projects := []model.Project{}
 	for rows.Next() {
 		var p model.Project
-		if err := rows.Scan(&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.IconEmoji, &p.CreatedAt, &p.UpdatedAt, &p.MembersCount); err != nil {
+		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.CreatedAt, &p.UpdatedAt, &p.MembersCount); err != nil {
 			return nil, err
 		}
 		p.IsStarred = true
@@ -344,3 +366,116 @@ func GetDefaultUserID() string {
 	}
 	return userID
 }
+
+func CreateProjectInvitation(projectID, createdBy, role, token string) (*model.ProjectInvitation, error) {
+	var inv model.ProjectInvitation
+	query := `
+		INSERT INTO project_invitations (project_id, created_by, role, token, expires_at)
+		VALUES ($1, $2, $3, $4, NOW() + INTERVAL '3 days')
+		RETURNING id, project_id, created_by, token, role, expires_at, created_at
+	`
+	err := DB.QueryRow(query, projectID, createdBy, role, token).Scan(
+		&inv.ID, &inv.ProjectID, &inv.CreatedBy, &inv.Token, &inv.Role, &inv.ExpiresAt, &inv.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &inv, nil
+}
+
+func GetInvitationByToken(token string) (*model.ProjectInvitation, error) {
+	var inv model.ProjectInvitation
+	query := `
+		SELECT id, project_id, created_by, token, role, expires_at, created_at
+		FROM project_invitations
+		WHERE token = $1 AND expires_at > NOW()
+	`
+	err := DB.QueryRow(query, token).Scan(
+		&inv.ID, &inv.ProjectID, &inv.CreatedBy, &inv.Token, &inv.Role, &inv.ExpiresAt, &inv.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &inv, nil
+}
+
+func AcceptProjectInvitation(userID, projectID, role string) error {
+	query := `
+		INSERT INTO project_members (project_id, user_id, role)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (project_id, user_id) DO UPDATE SET role = EXCLUDED.role
+	`
+	_, err := DB.Exec(query, projectID, userID, role)
+	return err
+}
+
+func TrackProjectView(userID, projectID string) error {
+	// Only track view if user is actually a member of the project
+	var isMember bool
+	checkQuery := `SELECT EXISTS(SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2)`
+	err := DB.QueryRow(checkQuery, projectID, userID).Scan(&isMember)
+	if err != nil || !isMember {
+		return nil
+	}
+
+	// Upsert user_project_views record
+	viewQuery := `
+		INSERT INTO user_project_views (user_id, project_id, viewed_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (user_id, project_id) DO UPDATE SET viewed_at = NOW()
+	`
+	_, err = DB.Exec(viewQuery, userID, projectID)
+	return err
+}
+
+func GetUserRecentProjects(userID string, page, limit int) ([]model.Project, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+	offset := (page - 1) * limit
+
+	countQuery := `
+		SELECT COUNT(*)
+		FROM user_project_views v
+		JOIN projects p ON v.project_id = p.id
+		JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = $1
+		WHERE v.user_id = $1
+	`
+	var total int
+	err := DB.QueryRow(countQuery, userID).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT p.id, p.title, COALESCE(p.description, ''), p.created_at, p.updated_at, v.viewed_at,
+		       (SELECT COUNT(*) FROM project_members pm2 WHERE pm2.project_id = p.id) AS members_count,
+		       EXISTS(SELECT 1 FROM user_starred_projects usp WHERE usp.user_id = $1 AND usp.project_id = p.id) AS is_starred
+		FROM user_project_views v
+		JOIN projects p ON v.project_id = p.id
+		JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = $1
+		WHERE v.user_id = $1
+		ORDER BY v.viewed_at DESC
+		LIMIT $2 OFFSET $3
+	`
+	rows, err := DB.Query(query, userID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	projects := []model.Project{}
+	for rows.Next() {
+		var p model.Project
+		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.CreatedAt, &p.UpdatedAt, &p.LastViewedAt, &p.MembersCount, &p.IsStarred); err != nil {
+			return nil, 0, err
+		}
+		projects = append(projects, p)
+	}
+
+	return projects, total, nil
+}
+

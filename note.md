@@ -138,22 +138,20 @@ Stores user authentication refresh tokens (SHA-256 Hashed), metadata, and revoca
 ---
 
 ### 4. `projects` (Formerly `boards` / `workspaces`) ✅
-Represents individual collaborative Projects owned by users or team members with UUID.
+Represents individual collaborative Projects created and managed by users with UUID.
 
 | Column Name  | Type         | Constraints                 | Description                |
 |--------------|--------------|-----------------------------|----------------------------|
 | `id`         | UUID         | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique identifier (UUID) |
-| `owner_id`   | UUID         | REFERENCES users(id) ON DELETE CASCADE | Project owner (UUID)   |
 | `title`      | VARCHAR(150) | NOT NULL                    | Title of the project       |
 | `description`| TEXT         | NULL                        | Project description        |
-| `icon_emoji` | VARCHAR(20)  | DEFAULT '📋'                | Project icon/emoji         |
 | `created_at` | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Creation timestamp         |
 | `updated_at` | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Last update timestamp      |
 
 ---
 
-### 5. `project_members` (Junction Table for Collaboration & Settings) ✅
-Maps users to projects with specific role permissions for Member Management in Settings.
+### 5. `project_members` (Junction Table for Collaboration & Roles) ✅
+Maps users to projects with specific role permissions (`'owner'`, `'editor'`, `'viewer'`) for Member Management in Settings.
 
 | Column Name  | Type         | Constraints                 | Description                |
 |--------------|--------------|-----------------------------|----------------------------|
@@ -163,6 +161,21 @@ Maps users to projects with specific role permissions for Member Management in S
 | `invited_by` | UUID         | REFERENCES users(id) ON DELETE SET NULL | User who invited member    |
 | `created_at` | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Join timestamp             |
 | PRIMARY KEY  | `(project_id, user_id)` |                 | Composite primary key      |
+
+---
+
+### 5.1 `project_invitations` (Dynamic Invite Tokens with 3-Day Expiry) ✅
+Stores dynamic join link tokens with configurable roles (`'editor'` or `'viewer'`) and a 3-day expiration time.
+
+| Column Name  | Type         | Constraints                 | Description                |
+|--------------|--------------|-----------------------------|----------------------------|
+| `id`         | UUID         | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique Token ID (UUID) |
+| `project_id` | UUID         | REFERENCES projects(id) ON DELETE CASCADE | Target Project ID (UUID)  |
+| `created_by` | UUID         | REFERENCES users(id) ON DELETE CASCADE  | User who generated link   |
+| `token`      | VARCHAR(255) | UNIQUE, NOT NULL            | Secure random URL token    |
+| `role`       | VARCHAR(20)  | NOT NULL DEFAULT 'editor'   | Granted role ('editor', 'viewer') |
+| `expires_at` | TIMESTAMPTZ  | NOT NULL                    | Expiration time (3 days)   |
+| `created_at` | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Creation timestamp         |
 
 ---
 
@@ -307,6 +320,18 @@ Tracks user-specific starred/favorite projects for Quick Navigation in **Starred
 | `user_id`    | UUID         | REFERENCES users(id) ON DELETE CASCADE | Target User ID (UUID)   |
 | `project_id` | UUID         | REFERENCES projects(id) ON DELETE CASCADE | Starred Project ID (UUID)|
 | `created_at` | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Starred timestamp          |
+| PRIMARY KEY  | `(user_id, project_id)` |                 | Composite primary key      |
+
+---
+
+### 15.1 `user_project_views` (Recent Projects View Tracking & History) ✅
+Tracks user-specific recent project access history. Automatically recorded/upserted when opening or creating a project. Used by SideNavbar (limit 10) and `/projects/recent` page with pagination.
+
+| Column Name  | Type         | Constraints                 | Description                |
+|--------------|--------------|-----------------------------|----------------------------|
+| `user_id`    | UUID         | REFERENCES users(id) ON DELETE CASCADE | Target User ID (UUID)   |
+| `project_id` | UUID         | REFERENCES projects(id) ON DELETE CASCADE | Viewed Project ID (UUID)|
+| `viewed_at`  | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Last viewed timestamp      |
 | PRIMARY KEY  | `(user_id, project_id)` |                 | Composite primary key      |
 
 ---

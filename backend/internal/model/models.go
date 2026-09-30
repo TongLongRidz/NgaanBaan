@@ -15,15 +15,21 @@ type User struct {
 }
 
 type Project struct {
-	ID           string    `json:"id"`
-	OwnerID      string    `json:"owner_id"`
-	Title        string    `json:"title"`
-	Description  string    `json:"description"`
-	IconEmoji    string    `json:"icon_emoji"`
-	MembersCount int       `json:"members_count"`
-	IsStarred    bool      `json:"is_starred"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           string     `json:"id"`
+	Title        string     `json:"title"`
+	Description  string     `json:"description"`
+	Role         string     `json:"role,omitempty"`
+	MembersCount int        `json:"members_count"`
+	IsStarred    bool       `json:"is_starred"`
+	LastViewedAt *time.Time `json:"last_viewed_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+}
+
+type UserProjectView struct {
+	UserID    string    `json:"user_id"`
+	ProjectID string    `json:"project_id"`
+	ViewedAt  time.Time `json:"viewed_at"`
 }
 
 type ProjectMember struct {
@@ -34,6 +40,16 @@ type ProjectMember struct {
 	Role      string    `json:"role"`
 	AvatarURL string    `json:"avatar_url"`
 	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type ProjectInvitation struct {
+	ID        string    `json:"id"`
+	ProjectID string    `json:"project_id"`
+	CreatedBy string    `json:"created_by"`
+	Token     string    `json:"token"`
+	Role      string    `json:"role"`
+	ExpiresAt time.Time `json:"expires_at"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

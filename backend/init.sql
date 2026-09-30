@@ -53,10 +53,8 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 -- 3. projects (formerly boards)
 CREATE TABLE IF NOT EXISTS projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(150) NOT NULL,
     description TEXT,
-    icon_emoji VARCHAR(20) DEFAULT '📋',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -72,6 +70,17 @@ CREATE TABLE IF NOT EXISTS project_members (
     invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (project_id, user_id)
+);
+
+-- 4.1 project_invitations (Dynamic Invite Tokens)
+CREATE TABLE IF NOT EXISTS project_invitations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'editor',
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 5. columns
@@ -180,8 +189,17 @@ CREATE TABLE IF NOT EXISTS user_starred_projects (
     PRIMARY KEY (user_id, project_id)
 );
 
+-- 15. user_project_views (Recent Projects tracking)
+CREATE TABLE IF NOT EXISTS user_project_views (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    viewed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, project_id)
+);
+
 -- Additional Indexes
 CREATE INDEX IF NOT EXISTS idx_columns_project_id ON columns(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_column_id ON tasks(column_id);
 CREATE INDEX IF NOT EXISTS idx_project_activities_project_id ON project_activities(project_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_project_views_user_viewed ON user_project_views(user_id, viewed_at DESC);

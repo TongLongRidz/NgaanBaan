@@ -44,6 +44,7 @@ func main() {
 	r.POST("/api/auth/forgot-password", handler.RequestPasswordReset)
 	r.POST("/api/auth/reset-password", handler.ConfirmPasswordReset)
 	r.GET("/api/auth/validate-reset-token", handler.ValidatePasswordResetToken)
+	r.GET("/api/public/invitations/:token", handler.ValidateInviteToken)
 
 	// Protected API Routes (Session Token required)
 	api := r.Group("/api")
@@ -56,9 +57,13 @@ func main() {
 		// Projects Endpoints
 		api.GET("/projects", handler.GetProjects)
 		api.POST("/projects", handler.CreateProject)
+		api.GET("/projects/recent", handler.GetRecentProjects)
 		api.GET("/projects/starred", handler.GetStarredProjects)
 		api.GET("/projects/:id", handler.GetProjectByID)
 		api.POST("/projects/:id/star", handler.ToggleStarProject)
+		api.POST("/projects/:id/invitations", handler.CreateProjectInviteLink)
+		api.GET("/invitations/:token", handler.ValidateInviteToken)
+		api.POST("/invitations/:token/accept", handler.JoinProjectByToken)
 
 		// Subtasks Endpoints
 		api.PATCH("/subtasks/:id/toggle", handler.ToggleSubtask)
