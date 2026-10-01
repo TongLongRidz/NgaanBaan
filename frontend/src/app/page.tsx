@@ -73,7 +73,7 @@ export default function MainPage() {
 				<header className="max-w-5xl w-full mx-auto px-6 min-h-[calc(75vh-64px)] text-center flex flex-col items-center justify-center py-12">
 					{/* Title Lines with Staggered Fade Delays */}
 					<div className="max-w-4xl mb-6">
-						<h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight flex flex-col items-center justify-center gap-2">
+						<h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-tight flex flex-col items-center justify-center gap-1.5 sm:gap-2">
 							<span
 								data-aos="fade-up"
 								data-aos-delay="100"
@@ -111,7 +111,7 @@ export default function MainPage() {
 						className="max-w-2xl mb-8"
 					>
 						<p
-							className={`text-base md:text-lg leading-relaxed ${isDark ? "text-slate-400" : "text-slate-600"}`}
+							className={`text-sm sm:text-base md:text-lg leading-relaxed whitespace-pre-line sm:whitespace-normal ${isDark ? "text-slate-400" : "text-slate-600"}`}
 						>
 							{t("landing.hero_subtitle")}
 						</p>

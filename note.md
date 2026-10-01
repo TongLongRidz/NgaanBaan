@@ -10,9 +10,11 @@ This document outlines the database schema design for the NgaanBaan (Kanban & Pr
 A **Project** is a collaborative project hub containing multiple views and settings:
 - **Summary**: High-level project progress, task completion metrics, and activity feeds.
 - **Board**: Interactive Kanban board view (Columns & Task Cards).
-- **Calendar**: Interactive calendar view based on task `start_date` and `due_date`.
+- **Calendar**: Single-container interactive calendar view based on task `start_date` and `due_date`.
 - **Gantt Chart**: Interactive timeline & Gantt chart schedule view.
-- **Settings**: Member management (add/remove users, change roles 'owner', 'editor', 'viewer') & project details editing.
+- **SubNavbar & Navigation**: Sticky sub-navigation bar below `TopNavbar`. Navigation away from `/projects/[uuid]` always resets to the Summary/Overview tab upon return, while page reload (F5 / Cmd+R) preserves the currently selected tab using `sessionStorage`.
+- **Project Info & Description**: Description popup modal triggered from the Info (`Info`) button right next to the project title in `TopNavbar`.
+- **Members & Permissions**: Member role management ('owner', 'editor', 'viewer') and privacy/visibility controls ('team', 'private', 'public'). **Only the project Owner** can modify visibility, kick/remove members, or update member roles (enforced at both frontend UI and backend REST API levels).
 
 ---
 
@@ -52,14 +54,14 @@ A **Project** is a collaborative project hub containing multiple views and setti
        |                                                    |
        |                                                    *
        + --- * [ Task Assignees ] * --- 1 -------------- [ Columns (UUID) ] 1 --- * [ Tasks (UUID) ]
-                                                                                       |
-                                                                                       + --- * [ Subtasks (UUID) ] 1 --- * [ Subtask Checklists (UUID) ]
-                                                                                       |
-                                                                                       + --- * [ Task Attachments (UUID) ]
-                                                                                       |
-                                                                                       + --- * [ Subtask Attachments (UUID) ]
-                                                                                       |
-                                                                                       + --- * [ Task Comments (UUID) ]
+                                                                                        |
+                                                                                        + --- * [ Subtasks (UUID) ] 1 --- * [ Subtask Checklists (UUID) ]
+                                                                                        |
+                                                                                        + --- * [ Task Attachments (UUID) ]
+                                                                                        |
+                                                                                        + --- * [ Subtask Attachments (UUID) ]
+                                                                                        |
+                                                                                        + --- * [ Task Comments (UUID) ]
 ```
 
 ### MongoDB (NoSQL Database for Security Audit Logs & System Events)
@@ -85,7 +87,7 @@ Stores user authentication and profile details with UUID.
 | `google_id`  | VARCHAR(255) | UNIQUE, NULL                | Google OAuth Subject/User ID |
 | `auth_provider` | VARCHAR(50)| NOT NULL DEFAULT 'local'   | Auth provider ('local', 'google') |
 | `avatar_url` | TEXT         | NULL                        | Profile image URL          |
-| `status`     | VARCHAR(20)  | NOT NULL DEFAULT 'offline'  | Online presence status ('online', 'offline', 'away') |
+| `status`     | VARCHAR(20)  | NOT NULL DEFAULT 'offline'  | Online presence status ('active', 'away', 'offline') |
 | `is_email_verified` | BOOLEAN | NOT NULL DEFAULT FALSE     | Email verification status flag |
 | `last_active`| TIMESTAMPTZ | DEFAULT CURRENT_TIMESTAMP   | Last active timestamp      |
 | `created_at` | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Creation timestamp         |
@@ -145,6 +147,7 @@ Represents individual collaborative Projects created and managed by users with U
 | `id`         | UUID         | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique identifier (UUID) |
 | `title`      | VARCHAR(150) | NOT NULL                    | Title of the project       |
 | `description`| TEXT         | NULL                        | Project description        |
+| `visibility` | VARCHAR(20)  | NOT NULL DEFAULT 'team'     | Project visibility ('team', 'private', 'public') |
 | `created_at` | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Creation timestamp         |
 | `updated_at` | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Last update timestamp      |
 

@@ -107,10 +107,10 @@ export function LandingNavbar() {
 									) : (
 										<Sun className="h-3.5 w-3.5 text-amber-500" />
 									)}
-									Theme
+									{t("nav.theme")}
 								</span>
 								<span className="text-[10px] font-bold capitalize">
-									{theme}
+									{isDark ? t("nav.theme_dark") : t("nav.theme_light")}
 								</span>
 							</button>
 
@@ -120,10 +120,10 @@ export function LandingNavbar() {
 							>
 								<span className="flex items-center gap-2">
 									<Globe className="h-3.5 w-3.5 text-slate-400" />
-									Language
+									{t("nav.language")}
 								</span>
 								<span className="text-[10px] font-bold">
-									{language.toUpperCase()}
+									{language === "th" ? t("nav.lang_th") : t("nav.lang_en")}
 								</span>
 							</button>
 						</div>

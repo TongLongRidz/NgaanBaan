@@ -5,6 +5,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { DateTimeFormatProvider } from "@/hooks/useDateTimeFormat";
 
 const ibmPlexSansThai = IBM_Plex_Sans_Thai({
 	subsets: ["thai", "latin"],
@@ -42,8 +43,10 @@ export default async function RootLayout({
 			>
 				<ThemeProvider initialTheme={initialTheme}>
 					<LanguageProvider initialLanguage={initialLang}>
-						{children}
-						<Toaster richColors position="bottom-right" />
+						<DateTimeFormatProvider>
+							{children}
+							<Toaster richColors position="bottom-right" />
+						</DateTimeFormatProvider>
 					</LanguageProvider>
 				</ThemeProvider>
 			</body>

@@ -1,6 +1,6 @@
 ---
 name: NgaanBaan Board
-description: Ergonomic Kanban workspace for software engineering sprint management
+description: Ergonomic Kanban workspace with strict Dark/Light theme adaptation
 colors:
   primary: "#6366f1"
   primary-hover: "#4f46e5"
@@ -47,107 +47,70 @@ components:
 
 ## Overview
 
-**Creative North Star: "The Ergonomic Sprint Studio"**
+**Creative North Star: "Clean & Adaptive Dual-Theme Workspace"**
 
-NgaanBaan Board is designed as a focused, high-density engineering workspace built to minimize cognitive strain during intense sprint planning and daily standups. It balances sleek dark mode aesthetics with crisp light mode adaptability, employing subtle slate depth, intuitive tabular figures, and deliberate micro-interactions to make task progression effortless.
-
-The system emphasizes high information density without visual clutter. Clean borders, soft focus halos, and consistent tactile feedback guide developers through complex issue tracking without distraction.
+NgaanBaan Board is designed with a strict, minimalist **Dark & Light Mode** paradigm. It avoids unusual saturated colors, bright neon gradients, or overwhelming accent overlays. Instead, it relies on clean Slate neutrals (`#0d0f17` in Dark / `#fafafa` in Light), crisp 1px border dividers, and subtle Indigo actions to provide maximum legibility and zero visual fatigue.
 
 **Key Characteristics:**
-- **High Ergonomic Contrast**: Deep dark slate surfaces (`#0d0f17` / `#121522`) alongside clean light surfaces (`#fafafa` / `#ffffff`).
-- **Tactile Precision**: `12px` to `16px` rounded corners (`rounded-xl` / `rounded-2xl`) with subtle 1px border rules.
-- **Bilingual & Tabular Clarity**: Native support for IBM Plex Sans Thai with tabular numeric figures for issue IDs and timestamps.
+- **Strict Dual-Theme System**: Seamless adaptation between Dark Mode (`#0d0f17` bg / `#121522` card) and Light Mode (`#fafafa` bg / `#ffffff` card).
+- **Clean Neutral Palette**: No exotic rainbow gradients or non-standard saturated backgrounds.
+- **Ergonomic Precision**: Rounded corners (`12px` to `16px`) with crisp 1px structural borders (`border-slate-800` in Dark / `border-slate-200` in Light).
+- **Bilingual Typography**: Native IBM Plex Sans Thai font hierarchy with tabular numbers for timestamps and counts.
 
 ## Colors
 
-The color palette uses Indigo as the primary interactive voice, supported by dark slate neutrals, amber user accents, and semantic status indicators.
+The color palette uses refined Slate neutrals for structure and deep Indigo for primary actions, with clear semantic status indicators.
 
 ### Primary
-- **Indigo Pulse** (`#6366f1` / `oklch(60% 0.23 275)`): Used for interactive primary actions, active navigation items, focus halos, and key brand badges.
+- **Indigo Action** (`#6366f1` / `#4f46e5`): Used for primary buttons, active tab indicators, selection highlights, and key focus rings.
 
-### Neutral
-- **Dark Void Background** (`#0d0f17`): Base canvas for dark mode layout pages.
-- **Dark Slate Surface** (`#121522` / `#131625`): Card surfaces, navbar headers, and modal containers in dark mode.
-- **Light Paper Canvas** (`#fafafa`): Base canvas for light mode layout pages.
-- **Light Surface Card** (`#ffffff`): Card containers and navbar headers in light mode.
-- **Slate Border Divider** (`#1e293b` dark / `#e2e8f0` light): 1px structural borders separating header, column, and card bounds.
+### Neutral (Dark & Light)
+- **Dark Mode Canvas** (`#0d0f17`): Pure dark background for overall pages in dark mode.
+- **Dark Mode Surface** (`#121522` / `#131625`): Card surfaces, sidebar panels, and modal containers in dark mode.
+- **Light Mode Canvas** (`#fafafa`): Soft neutral light background for overall pages in light mode.
+- **Light Mode Surface** (`#ffffff`): Crisp white cards, sidebars, and modals in light mode.
+- **Border Rules** (`#1e293b` in Dark / `#e2e8f0` in Light): Subtle 1px structural dividers.
 
-### Accent & Status
-- **User Amber** (`#f59e0b`): User avatar highlights, assigned task indicator rings, and key callouts.
-- **Emerald Done** (`#10b981`): Status badge for completed tasks and online indicators.
-- **Rose Alert** (`#ef4444`): High-priority issues, deletion triggers, and error messages.
+### Status Indicators
+- **Emerald Success** (`#10b981`): Active user status, completed tasks, and success alerts.
+- **Amber Notice** (`#f59e0b`): Away status and medium-priority indicators.
+- **Rose Danger** (`#ef4444`): High-priority tasks, delete triggers, and error messages.
 
-### Named Rules
-**The Rarity of Primary Accent Rule.** Indigo accent fills are reserved exclusively for primary CTAs, active selection states, and focus rings. Never flood content cards with accent backgrounds.
+### Strict Rules
+- **No Unusual Colors or Loud Gradients**: Avoid bright purple/pink gradient backgrounds or neon surfaces. Maintain dark slate or crisp white surface contrast.
+- **Controlled Accent Use**: Indigo and status colors are used strictly for badges, buttons, and state indicators, never as full container backgrounds.
 
 ## Typography
 
-**Display & Body Font:** IBM Plex Sans Thai (with system-ui, -apple-system, BlinkMacSystemFont, sans-serif)
-
-**Character:** Technical, clean, and highly legible across both English engineering terms and Thai task copy.
+**Font Family:** IBM Plex Sans Thai (with system-ui, -apple-system, sans-serif)
 
 ### Hierarchy
-- **Display** (Bold, 1.25rem - 1.5rem, 1.2 line-height): Top navigation title and main page header titles.
-- **Headline** (Bold / Semi-bold, 1rem - 1.125rem, 1.3 line-height): Board column headers, modal titles, section headers.
-- **Body** (Regular / Medium, 0.875rem, 1.5 line-height): Task descriptions, user messages, and card details.
-- **Label** (Semi-bold / Bold, 0.75rem, tracking-wider, uppercase): Column category headers, tag badges, and metadata labels.
+- **Display** (Bold, 1.25rem - 1.5rem): Main headers and brand title.
+- **Headline** (Bold / Semi-bold, 1rem - 1.125rem): Section titles, modal headers, card titles.
+- **Body** (Regular / Medium, 0.875rem): Standard UI text, descriptions, and labels.
+- **Label & Metadata** (Semi-bold, 0.75rem): Metadata, tag badges, and timestamps (`.tabular-nums`).
 
-### Named Rules
-**The Tabular Data Rule.** All timestamps, task IDs, numbers, and counts must use the `.tabular-nums` utility class (`font-variant-numeric: tabular-nums`) to ensure zero visual jitter during real-time updates.
+## Layout & Elevation
 
-## Layout
-
-NgaanBaan Board utilizes a sticky top navbar (`h-16`), a collapsible side navigation drawer, and a flexible horizontal scrolling grid for Kanban columns (`max-w-7xl` or full-bleed board canvas).
-
-- **Spacing Rhythm**: 4px, 8px, 12px, 16px, 24px, 32px increments.
-- **Card Padding**: Compact padding (`px-4 py-3`) for dense task listings.
-- **Responsive Adaptability**: Flexbox layouts collapse to single-column lists on mobile viewports (<640px) while maintaining full multi-column drag-and-drop on desktop (>1024px).
-
-## Elevation & Depth
-
-The elevation model relies on 1px crisp borders (`border-slate-800/80` in dark, `border-slate-200` in light) combined with subtle backdrop blur (`backdrop-blur-md`) rather than heavy drop shadows.
-
-### Shadow Vocabulary
-- **Surface Elevation** (`shadow-sm`): Lightweight shadow (`0 1px 2px 0 rgba(0,0,0,0.05)`) applied to elevated light-mode cards and dropdown popovers.
-- **Focus Halo Glow** (`0 0 0 2px rgba(99, 102, 241, 0.8)`): Indigo focus halo on interactive controls and active focus states.
-
-### Named Rules
-**The Border-First Depth Rule.** Surfaces are defined by crisp 1px borders and subtle background contrast. Shadows appear strictly as state feedback for hover, drag, or active popovers.
-
-## Shapes
-
-- **Containers & Cards**: `12px` to `16px` border-radius (`rounded-xl` to `rounded-2xl`).
-- **Interactive Controls**: `8px` to `12px` border-radius (`rounded-lg` to `rounded-xl`).
-- **Avatars & Badges**: Fully rounded (`rounded-full` / `9999px`).
+- **Top Navbar**: Height `64px` (`h-16`), sticky top, with dynamic theme border (`border-slate-200` light / `border-slate-800` dark).
+- **Side Navbar**: Collapsible width (`16rem` expanded / `4rem` collapsed), sticky left side.
+- **Depth**: Defined by 1px crisp borders and subtle contrast between canvas (`#fafafa` / `#0d0f17`) and card surfaces (`#ffffff` / `#121522`). Heavy shadows are avoided.
 
 ## Components
 
-### Buttons
-- **Shape**: Rounded-xl (`12px` radius)
-- **Primary**: Indigo fill (`#6366f1`), text white (`#ffffff`), padding `8px 16px`. Hover: Indigo deep (`#4f46e5`).
-- **Ghost / Icon Button**: Transparent background, slate border (`1px`), text slate-300 (dark) / slate-700 (light). Hover: slate-800/60 (dark) / slate-100 (light).
+### Buttons & Toggles
+- **Primary**: Indigo background (`#6366f1`), white text, rounded-xl (`12px`).
+- **Pill Switchers**: Rounded-full container (`bg-[var(--input-bg)]`), active pill highlighted with `#10b981` (Emerald) or `#6366f1` (Indigo).
+- **Secondary / Ghost**: Neutral surface with 1px border (`border-slate-200` light / `border-slate-800` dark).
 
-### Cards
-- **Corner Style**: `12px` radius (`rounded-xl`).
-- **Background**: `#121522` in dark mode, `#ffffff` in light mode.
-- **Border**: 1px `border-slate-800` (dark) / `border-slate-200` (light).
-- **Internal Padding**: `16px` (`p-4`).
+### Cards & Modals
+- **Card Container**: `12px` - `16px` border-radius, background matching the active theme (`bg-white` in light, `bg-slate-900` in dark), 1px border.
 
-### Inputs / Search Fields
-- **Style**: 1px border (`border-slate-800` dark / `border-slate-200` light), `12px` radius (`rounded-xl`), padding `8px 16px 8px 36px` (with search icon).
-- **Focus**: Indigo ring (`ring-2 ring-indigo-500/80`), border glow.
+## Guidelines
+- **Do** strictly follow the Dark / Light theme variables (`var(--background)`, `var(--card-bg)`, `var(--foreground)`, `var(--card-border)`).
+- **Do** keep design clean, ergonomic, and easy on the eyes for extended software usage.
+- **Don't** add random saturated background colors or bright gradients to page containers.
+- **Don't** use decorative emojis in titles, headers, or buttons (e.g. 👋, 🚀, ✨, 🔥). Emojis clutter professional interface typography.
+- **Don't** add unnecessary decorative pill badges or sparkle tag labels above page headers unless explicitly requested. Keep page headers clean, direct, and purposeful.
 
-### Navigation
-- **Top Navbar**: Height `64px` (`h-16`), sticky `top-0`, backdrop blur (`backdrop-blur-md`), 1px bottom border.
 
-## Do's and Don'ts
-
-### Do:
-- **Do** maintain high contrast between text and background in both light (`#fafafa`) and dark (`#0d0f17`) modes.
-- **Do** apply `font-variant-numeric: tabular-nums` to numbers, task counts, and timestamps.
-- **Do** keep interactive touch/click targets to a minimum of 36x36px with rounded-xl boundaries.
-
-### Don't:
-- **Don't** use heavy, dark, diffuse drop shadows that muddy the card layout.
-- **Don't** mix unstyled system sans-serif fonts; always utilize IBM Plex Sans Thai with fallback stacks.
-- **Don't** use colored left/right accent borders over 1px on task cards.

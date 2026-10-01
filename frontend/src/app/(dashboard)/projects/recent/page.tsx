@@ -169,12 +169,8 @@ export default function RecentProjectsPage() {
 												{project.is_starred && (
 													<Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
 												)}
-												<span className="text-[10px] font-medium text-[var(--muted-foreground)] px-2.5 py-1 rounded-full bg-[var(--input-bg)] border border-[var(--card-border)]">
-													{project.last_viewed_at
-														? new Date(
-																project.last_viewed_at,
-															).toLocaleDateString()
-														: new Date(project.updated_at).toLocaleDateString()}
+												<span className="text-[10px] font-medium text-[var(--muted-foreground)] px-2.5 py-1 rounded-full bg-[var(--input-bg)] border border-[var(--card-border)]" title="แก้ไขล่าสุด (Latest edit)">
+													{new Date(project.updated_at).toLocaleDateString()}
 												</span>
 											</div>
 										</div>

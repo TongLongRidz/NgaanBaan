@@ -9,6 +9,7 @@ import {
 	ChevronRight,
 	Clock,
 	FolderKanban,
+	Home,
 	Layout,
 	LayoutDashboard,
 	PanelLeftClose,
@@ -79,17 +80,38 @@ export function SideNavbar() {
 		return false;
 	});
 
+	// Track last main page (recents, starred, shared, mine, my-tasks)
+	const [lastMainPage, setLastMainPage] = useState<string>("/projects/recent");
+
 	useEffect(() => {
-		if (typeof window !== "undefined") {
-			const saved = getStoredState<boolean | null>(
-				"sidenavbar_is_collapsed",
-				null,
-			);
-			if (saved === null) {
-				setIsCollapsed(window.innerWidth < 768);
+		if (typeof window !== "undefined" && pathname) {
+			let mainRoute: string | null = null;
+
+			if (pathname.startsWith("/my-tasks")) {
+				mainRoute = "/my-tasks";
+			} else if (pathname.startsWith("/projects/recent") || pathname.startsWith("/projects/recently")) {
+				mainRoute = "/projects/recent";
+			} else if (pathname.startsWith("/projects/starred")) {
+				mainRoute = "/projects/starred";
+			} else if (pathname.startsWith("/projects/shared")) {
+				mainRoute = "/projects/shared";
+			} else if (pathname.startsWith("/projects/mine")) {
+				mainRoute = "/projects/mine";
+			}
+
+			if (mainRoute) {
+				setLastMainPage(mainRoute);
+				try {
+					sessionStorage.setItem("last_main_page", mainRoute);
+				} catch {}
+			} else {
+				const saved = sessionStorage.getItem("last_main_page");
+				if (saved) {
+					setLastMainPage(saved);
+				}
 			}
 		}
-	}, []);
+	}, [pathname]);
 
 	const [isRecentsOpen, setIsRecentsOpen] = useState<boolean>(() =>
 		getStoredState<boolean>("sidenavbar_is_recents_open", true),
@@ -243,7 +265,7 @@ export function SideNavbar() {
 
 	return (
 		<aside
-			className={`relative border-r border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--foreground)] flex flex-col justify-between p-3 min-h-screen transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden shrink-0 z-50 ${
+			className={`sticky top-0 left-0 h-screen self-start border-r border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--foreground)] flex flex-col justify-between p-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-y-auto scrollbar-none shrink-0 z-50 animate-slide-down ${
 				isCollapsed ? "w-16" : "w-64"
 			}`}
 		>
@@ -254,17 +276,21 @@ export function SideNavbar() {
 				>
 					{!isCollapsed ? (
 						<>
-							<div className="flex items-center gap-2.5 select-none overflow-hidden min-w-0">
-								<div className="h-8 w-8 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shadow-md shrink-0">
+							<Link
+								href="/home"
+								className="flex items-center gap-2.5 select-none overflow-hidden min-w-0 group cursor-pointer"
+								title="Back to Home Overview"
+							>
+								<div className="h-8 w-8 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shadow-md shrink-0 group-hover:scale-105 transition-transform">
 									<LayoutDashboard className="h-4 w-4 text-slate-100" />
 								</div>
-								<h1 className="font-bold text-base leading-none truncate text-[var(--foreground)] transition-all duration-300">
+								<h1 className="font-bold text-base leading-none truncate text-[var(--foreground)] transition-all duration-300 group-hover:text-indigo-400">
 									{t("common.brand")}
 								</h1>
-							</div>
+							</Link>
 							<button
 								onClick={toggleCollapsed}
-								className="p-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--input-bg)] transition-colors shrink-0"
+								className="p-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--input-bg)] transition-colors shrink-0 cursor-pointer"
 								title="Collapse sidebar"
 							>
 								<PanelLeftClose className="h-4 w-4" />
@@ -273,17 +299,39 @@ export function SideNavbar() {
 					) : (
 						<button
 							onClick={toggleCollapsed}
-							className="p-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--input-bg)] transition-colors shrink-0"
+							className="p-2 rounded-xl text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--input-bg)] transition-all shrink-0 cursor-pointer"
 							title="Expand sidebar"
 						>
-							<PanelLeftOpen className="h-4 w-4" />
+							<PanelLeftOpen className="h-5 w-5" />
 						</button>
 					)}
 				</div>
 
 				<nav className="space-y-3">
-					{/* SECTION 1: ACTIVITY ITEMS */}
+					{/* SECTION 1: NAVIGATION & ACTIVITY ITEMS */}
 					<div className="space-y-1">
+						{/* Home */}
+						<Link
+							href="/home"
+							title={isCollapsed ? `${t("nav.home") || "Home"}` : undefined}
+							className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 ${
+								pathname === "/home"
+									? "bg-[var(--input-bg)] text-[var(--foreground)] font-semibold"
+									: "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--input-bg)]"
+							}`}
+						>
+							<div className="flex items-center gap-3 min-w-0">
+								<Home
+									className={`h-4 w-4 shrink-0 transition-transform duration-200 ${pathname === "/home" ? "text-[var(--foreground)] scale-110" : "text-[var(--muted-foreground)]"}`}
+								/>
+								<span
+									className={`truncate transition-all duration-300 ${isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}
+								>
+									{t("nav.home") || "หน้าแรก"}
+								</span>
+							</div>
+						</Link>
+
 						{/* Notifications */}
 						<Link
 							href="/notifications"
@@ -355,12 +403,17 @@ export function SideNavbar() {
 									{recentProjects.slice(0, 10).map((project) => {
 										const isActive =
 											pathname === project.href &&
-											(pathname === "/projects/recent" ||
-												pathname === "/projects/recently");
+											(lastMainPage === "/projects/recent" || lastMainPage === "/projects/recently");
 										return (
 											<Link
 												key={`recent-${project.id}`}
 												href={project.href}
+												onClick={() => {
+													try {
+														sessionStorage.setItem("last_main_page", "/projects/recent");
+														setLastMainPage("/projects/recent");
+													} catch {}
+												}}
 												className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
 													isActive
 														? "bg-[var(--input-bg)] text-[var(--foreground)] font-semibold"
@@ -439,11 +492,18 @@ export function SideNavbar() {
 							{isSharedProjectsOpen && !isCollapsed && sharedProjects.length > 0 && (
 								<div className="ml-5 pl-3 border-l border-[var(--card-border)] space-y-1 mt-1 transition-all duration-300">
 									{sharedProjects.slice(0, 10).map((project) => {
-										const isActive = pathname === project.href;
+										const isActive =
+											pathname === project.href && lastMainPage === "/projects/shared";
 										return (
 											<Link
 												key={`shared-${project.id}`}
 												href={project.href}
+												onClick={() => {
+													try {
+														sessionStorage.setItem("last_main_page", "/projects/shared");
+														setLastMainPage("/projects/shared");
+													} catch {}
+												}}
 												className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
 													isActive
 														? "bg-[var(--input-bg)] text-[var(--foreground)] font-semibold"
@@ -502,11 +562,17 @@ export function SideNavbar() {
 									{myProjects.slice(0, 10).map((project) => {
 										const isActive =
 											pathname === project.href &&
-											(pathname === "/projects/mine" || pathname === "/projects");
+											(lastMainPage === "/projects/mine" || lastMainPage === "/projects");
 										return (
 											<Link
 												key={`my-${project.id}`}
 												href={project.href}
+												onClick={() => {
+													try {
+														sessionStorage.setItem("last_main_page", "/projects/mine");
+														setLastMainPage("/projects/mine");
+													} catch {}
+												}}
 												className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
 													isActive
 														? "bg-[var(--input-bg)] text-[var(--foreground)] font-semibold"
@@ -527,32 +593,40 @@ export function SideNavbar() {
 
 					{/* SECTION 3: MY TASKS */}
 					<div className="space-y-1">
-						<button
-							onClick={() => {
-								if (isCollapsed) toggleCollapsed();
-								toggleMyTasksOpen();
-							}}
-							title={isCollapsed ? `${t("nav.my_tasks")}` : undefined}
-							className={`w-full flex items-center ${isCollapsed ? "justify-center" : "justify-between"} px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--input-bg)]`}
+						<div
+							className={`w-full flex items-center ${isCollapsed ? "justify-center" : "justify-between"} px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 ${
+								pathname.startsWith("/my-tasks")
+									? "bg-[var(--input-bg)] text-[var(--foreground)] font-semibold"
+									: "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--input-bg)]"
+							}`}
 						>
-							<div className="flex items-center gap-3 min-w-0">
-								<User className="h-4 w-4 shrink-0 text-[var(--muted-foreground)]" />
+							<Link
+								href="/my-tasks"
+								title={isCollapsed ? `${t("nav.my_tasks")}` : undefined}
+								className={`flex items-center gap-3 min-w-0 ${isCollapsed ? "justify-center" : "flex-1"}`}
+							>
+								<User
+									className={`h-4 w-4 shrink-0 transition-transform duration-200 ${pathname.startsWith("/my-tasks") ? "text-[var(--foreground)] scale-110" : "text-[var(--muted-foreground)]"}`}
+								/>
 								<span
 									className={`truncate transition-all duration-300 ${isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}
 								>
 									{t("nav.my_tasks")}
 								</span>
-							</div>
-							{!isCollapsed ? (
-								<div className="flex items-center gap-2 transition-opacity duration-200">
+							</Link>
+							{!isCollapsed && (
+								<button
+									onClick={toggleMyTasksOpen}
+									className="p-0.5 text-[var(--muted-foreground)] hover:text-[var(--foreground)] rounded transition-opacity duration-200 cursor-pointer"
+								>
 									{isMyTasksOpen ? (
 										<ChevronDown className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
 									) : (
 										<ChevronRight className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
 									)}
-								</div>
-							) : null}
-						</button>
+								</button>
+							)}
+						</div>
 
 						{/* My Tasks Submenu Dropdown */}
 						{isMyTasksOpen && !isCollapsed && (

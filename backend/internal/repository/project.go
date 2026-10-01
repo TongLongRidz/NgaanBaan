@@ -1,13 +1,18 @@
 package repository
 
 import (
+	"fmt"
+	"strings"
+
 	"backend/internal/model"
 	"github.com/lib/pq"
 )
 
 func GetUserProjects(userID string) ([]model.Project, error) {
 	query := `
-		SELECT p.id, p.title, COALESCE(p.description, ''), pm.role, p.created_at, p.updated_at,
+		SELECT p.id, p.title, COALESCE(p.description, ''),
+		       CASE WHEN LOWER(pm.role) = 'owner' THEN 'Owner' WHEN LOWER(pm.role) = 'editor' THEN 'Editor' ELSE 'Viewer' END AS role,
+		       p.created_at, p.updated_at,
 		       (SELECT COUNT(*) FROM project_members pm2 WHERE pm2.project_id = p.id) AS members_count
 		FROM projects p
 		JOIN project_members pm ON p.id = pm.project_id
@@ -52,7 +57,29 @@ func CreateProject(title, description, ownerID string) (*model.Project, error) {
 	`
 	_, _ = DB.Exec(memberQuery, p.ID, ownerID)
 
+	// Auto-create 4 default Kanban columns (Positions 1..4 with name_th and name_en)
+	defaultColumns := []struct {
+		Name     string
+		NameTH   string
+		NameEN   string
+		Position int
+	}{
+		{Name: "To Do", NameTH: "รอดำเนินการ", NameEN: "To Do", Position: 1},
+		{Name: "In Progress", NameTH: "อยู่ระหว่างดำเนินการ", NameEN: "In Progress", Position: 2},
+		{Name: "In Review", NameTH: "อยู่ระหว่างการตรวจสอบ", NameEN: "In Review", Position: 3},
+		{Name: "Done", NameTH: "เสร็จสิ้น", NameEN: "Done", Position: 4},
+	}
+
+	colQuery := `
+		INSERT INTO columns (project_id, name, name_th, name_en, position)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+	for _, col := range defaultColumns {
+		_, _ = DB.Exec(colQuery, p.ID, col.Name, col.NameTH, col.NameEN, col.Position)
+	}
+
 	p.MembersCount = 1
+	p.Role = "Owner"
 	return &p, nil
 }
 
@@ -74,22 +101,38 @@ func GetProjectByID(id string) (*model.Project, error) {
 func GetUserProjectByID(projectID, userID string) (*model.Project, error) {
 	var p model.Project
 	query := `
-		SELECT p.id, p.title, COALESCE(p.description, ''), pm.role, p.created_at, p.updated_at,
+		SELECT p.id, p.title, COALESCE(p.description, ''), COALESCE(p.visibility, 'team'),
+		       CASE WHEN LOWER(pm.role) = 'owner' THEN 'Owner' WHEN LOWER(pm.role) = 'editor' THEN 'Editor' ELSE 'Viewer' END AS role,
+		       p.created_at, p.updated_at,
 		       (SELECT COUNT(*) FROM project_members pm2 WHERE pm2.project_id = p.id) AS members_count
 		FROM projects p
 		JOIN project_members pm ON p.id = pm.project_id
 		WHERE p.id = $1 AND pm.user_id = $2
 	`
-	err := DB.QueryRow(query, projectID, userID).Scan(&p.ID, &p.Title, &p.Description, &p.Role, &p.CreatedAt, &p.UpdatedAt, &p.MembersCount)
+	err := DB.QueryRow(query, projectID, userID).Scan(&p.ID, &p.Title, &p.Description, &p.Visibility, &p.Role, &p.CreatedAt, &p.UpdatedAt, &p.MembersCount)
 	if err != nil {
 		return nil, err
 	}
 	return &p, nil
 }
 
+func UpdateProjectVisibility(projectID, requestingUserID, visibility string) error {
+	// Verify requesting user is owner
+	var requesterRole string
+	roleQuery := `SELECT LOWER(role) FROM project_members WHERE project_id = $1 AND user_id = $2`
+	err := DB.QueryRow(roleQuery, projectID, requestingUserID).Scan(&requesterRole)
+	if err != nil || requesterRole != "owner" {
+		return fmt.Errorf("only owner can update project visibility")
+	}
+
+	updateQuery := `UPDATE projects SET visibility = $1, updated_at = NOW() WHERE id = $2`
+	_, err = DB.Exec(updateQuery, visibility, projectID)
+	return err
+}
+
 func GetProjectColumns(projectID string) ([]model.Column, error) {
 	query := `
-		SELECT id, project_id, name, position, created_at, updated_at
+		SELECT id, project_id, name, COALESCE(name_th, ''), COALESCE(name_en, ''), position, created_at, updated_at
 		FROM columns
 		WHERE project_id = $1
 		ORDER BY position ASC
@@ -103,7 +146,7 @@ func GetProjectColumns(projectID string) ([]model.Column, error) {
 	columns := []model.Column{}
 	for rows.Next() {
 		var col model.Column
-		if err := rows.Scan(&col.ID, &col.ProjectID, &col.Name, &col.Position, &col.CreatedAt, &col.UpdatedAt); err != nil {
+		if err := rows.Scan(&col.ID, &col.ProjectID, &col.Name, &col.NameTH, &col.NameEN, &col.Position, &col.CreatedAt, &col.UpdatedAt); err != nil {
 			return nil, err
 		}
 		tasks, err := GetTasksByColumnID(col.ID)
@@ -277,11 +320,13 @@ func GetProjectActivities(projectID string) ([]model.ProjectActivity, error) {
 
 func GetProjectMembers(projectID string) ([]model.ProjectMember, error) {
 	query := `
-		SELECT pm.project_id, u.id, u.firstname || ' ' || COALESCE(u.lastname, ''), u.email, pm.role, COALESCE(u.avatar_url, ''), 'Active', pm.created_at
+		SELECT pm.project_id, u.id, u.firstname || ' ' || COALESCE(u.lastname, ''), u.email,
+		       CASE WHEN LOWER(pm.role) = 'owner' THEN 'Owner' WHEN LOWER(pm.role) = 'editor' THEN 'Editor' ELSE 'Viewer' END AS role,
+		       COALESCE(u.avatar_url, ''), 'Active', pm.created_at
 		FROM project_members pm
 		JOIN users u ON pm.user_id = u.id
 		WHERE pm.project_id = $1
-		ORDER BY CASE WHEN pm.role = 'owner' THEN 1 WHEN pm.role = 'editor' THEN 2 ELSE 3 END, pm.created_at ASC
+		ORDER BY CASE WHEN LOWER(pm.role) = 'owner' THEN 1 WHEN LOWER(pm.role) = 'editor' THEN 2 ELSE 3 END, pm.created_at ASC
 	`
 	rows, err := DB.Query(query, projectID)
 	if err != nil {
@@ -298,6 +343,41 @@ func GetProjectMembers(projectID string) ([]model.ProjectMember, error) {
 		members = append(members, m)
 	}
 	return members, nil
+}
+
+func RemoveProjectMember(projectID, targetUserID, requestingUserID string) error {
+	// Verify requesting user is owner
+	var requesterRole string
+	roleQuery := `SELECT LOWER(role) FROM project_members WHERE project_id = $1 AND user_id = $2`
+	err := DB.QueryRow(roleQuery, projectID, requestingUserID).Scan(&requesterRole)
+	if err != nil || requesterRole != "owner" {
+		return fmt.Errorf("only owner can remove members")
+	}
+
+	// Cannot remove owner
+	var targetRole string
+	err = DB.QueryRow(roleQuery, projectID, targetUserID).Scan(&targetRole)
+	if err == nil && targetRole == "owner" {
+		return fmt.Errorf("cannot remove project owner")
+	}
+
+	deleteQuery := `DELETE FROM project_members WHERE project_id = $1 AND user_id = $2`
+	_, err = DB.Exec(deleteQuery, projectID, targetUserID)
+	return err
+}
+
+func UpdateProjectMemberRole(projectID, targetUserID, requestingUserID, newRole string) error {
+	// Verify requesting user is owner
+	var requesterRole string
+	roleQuery := `SELECT LOWER(role) FROM project_members WHERE project_id = $1 AND user_id = $2`
+	err := DB.QueryRow(roleQuery, projectID, requestingUserID).Scan(&requesterRole)
+	if err != nil || requesterRole != "owner" {
+		return fmt.Errorf("only owner can update member roles")
+	}
+
+	updateQuery := `UPDATE project_members SET role = $1 WHERE project_id = $2 AND user_id = $3`
+	_, err = DB.Exec(updateQuery, strings.ToLower(newRole), projectID, targetUserID)
+	return err
 }
 
 func ToggleSubtask(subtaskID string) error {

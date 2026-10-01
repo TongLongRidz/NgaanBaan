@@ -218,10 +218,21 @@ func RefreshToken(c *gin.Context) {
 
 func Logout(c *gin.Context) {
 	if plainToken, err := c.Cookie("refresh_token"); err == nil && plainToken != "" {
+		if user, err := repository.ValidateUserSession(plainToken); err == nil {
+			_ = repository.UpdateUserStatus(user.ID, "offline")
+		}
 		_ = repository.RevokeRefreshToken(plainToken)
 	}
 	if plainToken, err := c.Cookie("user_session_id"); err == nil && plainToken != "" {
+		if user, err := repository.ValidateUserSession(plainToken); err == nil {
+			_ = repository.UpdateUserStatus(user.ID, "offline")
+		}
 		_ = repository.RevokeRefreshToken(plainToken)
+	}
+	if userVal, exists := c.Get("user"); exists {
+		if user, ok := userVal.(*model.User); ok {
+			_ = repository.UpdateUserStatus(user.ID, "offline")
+		}
 	}
 
 	c.SetCookie("refresh_token", "", -1, "/api/auth", "", false, true)
@@ -634,6 +645,86 @@ func CreateProjectInviteLink(c *gin.Context) {
 	})
 }
 
+func RemoveProjectMember(c *gin.Context) {
+	projectID := c.Param("id")
+	targetUserID := c.Param("userId")
+
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	user := userVal.(*model.User)
+
+	err := repository.RemoveProjectMember(projectID, targetUserID, user.ID)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Member removed successfully"})
+}
+
+func UpdateProjectMemberRole(c *gin.Context) {
+	projectID := c.Param("id")
+	targetUserID := c.Param("userId")
+
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	user := userVal.(*model.User)
+
+	var req struct {
+		Role string `json:"role" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := repository.UpdateProjectMemberRole(projectID, targetUserID, user.ID, req.Role)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Member role updated successfully"})
+}
+
+func UpdateProjectVisibility(c *gin.Context) {
+	projectID := c.Param("id")
+
+	userVal, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	user := userVal.(*model.User)
+
+	var req struct {
+		Visibility string `json:"visibility" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Visibility != "team" && req.Visibility != "private" && req.Visibility != "public" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid visibility option"})
+		return
+	}
+
+	err := repository.UpdateProjectVisibility(projectID, user.ID, req.Visibility)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Project visibility updated successfully", "visibility": req.Visibility})
+}
+
 func ValidateInviteToken(c *gin.Context) {
 	token := c.Param("token")
 	inv, err := repository.GetInvitationByToken(token)
@@ -679,4 +770,34 @@ func JoinProjectByToken(c *gin.Context) {
 		"role":       inv.Role,
 	})
 }
+
+func UpdateUserStatus(c *gin.Context) {
+	val, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	user := val.(*model.User)
+
+	var req struct {
+		Status string `json:"status" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	if req.Status != "active" && req.Status != "away" && req.Status != "offline" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status value"})
+		return
+	}
+
+	if err := repository.UpdateUserStatus(user.ID, req.Status); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success", "user_status": req.Status})
+}
+
 

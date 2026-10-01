@@ -44,6 +44,8 @@ export interface Task {
 export interface Column {
 	id: string;
 	name: string;
+	name_th?: string;
+	name_en?: string;
 	tasks: Task[];
 }
 

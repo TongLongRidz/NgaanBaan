@@ -4,18 +4,13 @@ import {
 	ArrowLeft,
 	ArrowRight,
 	Check,
-	Copy,
-	ExternalLink,
 	Eye,
 	EyeOff,
 	Globe,
-	KeyRound,
 	LayoutDashboard,
 	Lock,
 	Mail,
 	Moon,
-	RefreshCw,
-	ShieldCheck,
 	Sun,
 	User,
 } from "lucide-react";
@@ -23,7 +18,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type React from "react";
 import { Suspense, useEffect, useState } from "react";
-import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { EmailVerificationCard } from "@/components/ui/email/VerificationCard";
 import { showAlert } from "@/components/ui/notification/sweetalert/sweetalert";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -129,7 +123,7 @@ function UnifiedAuthForm() {
 				timer: 1500,
 				showConfirmButton: false,
 			});
-			router.push("/projects");
+			router.push("/home");
 		} catch (err: any) {
 			setErrorMsg(err.message || "Verification failed");
 		} finally {
@@ -359,7 +353,7 @@ function UnifiedAuthForm() {
 				showConfirmButton: false,
 			});
 
-			router.push("/projects");
+			router.push("/home");
 		} catch (err: any) {
 			setErrorKey({ key: "auth.invalid_credentials" });
 		} finally {
@@ -462,7 +456,7 @@ function UnifiedAuthForm() {
 				showConfirmButton: false,
 			});
 
-			router.push("/projects");
+			router.push("/home");
 		} catch (err: any) {
 			setErrorKey({ key: "auth.invalid_credentials" });
 		} finally {

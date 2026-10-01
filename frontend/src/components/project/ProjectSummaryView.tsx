@@ -4,6 +4,7 @@ import {
 	BarChart2,
 	CheckCircle2,
 	Clock,
+	FileText,
 	ListTodo,
 	PieChart,
 	TrendingUp,
@@ -14,9 +15,13 @@ import type { Column } from "@/types/project";
 
 interface ProjectSummaryViewProps {
 	columns: Column[];
+	projectDescription?: string;
 }
 
-export function ProjectSummaryView({ columns }: ProjectSummaryViewProps) {
+export function ProjectSummaryView({
+	columns,
+	projectDescription,
+}: ProjectSummaryViewProps) {
 	const { t } = useLanguage();
 	const allTasks = columns.flatMap((col) => col.tasks);
 	const totalTasks = allTasks.length;

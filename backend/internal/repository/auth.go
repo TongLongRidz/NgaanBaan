@@ -55,6 +55,10 @@ func LoginUser(email, password string) (*model.User, string, error) {
 		return nil, "", errors.New("invalid email or password")
 	}
 
+	// Update status to active upon login
+	_, _ = DB.Exec("UPDATE users SET status = 'active', last_active = NOW() WHERE id = $1", user.ID)
+	user.Status = "active"
+
 	// Create user session token
 	sessionID, err := CreateUserSession(user.ID, "Web Browser")
 	if err != nil {
@@ -289,3 +293,11 @@ func ValidatePasswordResetToken(token string) bool {
 	err := DB.QueryRow(query, token).Scan(&userID)
 	return err == nil
 }
+
+// UpdateUserStatus updates user status and last_active timestamp
+func UpdateUserStatus(userID, status string) error {
+	query := `UPDATE users SET status = $1, last_active = NOW(), updated_at = NOW() WHERE id = $2`
+	_, err := DB.Exec(query, status, userID)
+	return err
+}
+

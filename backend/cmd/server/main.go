@@ -51,6 +51,7 @@ func main() {
 	api.Use(handler.AuthMiddleware())
 	{
 		api.GET("/auth/me", handler.GetMe)
+		api.PATCH("/auth/status", handler.UpdateUserStatus)
 		api.POST("/auth/verify-otp", handler.VerifyOTP)
 		api.POST("/auth/resend-otp", handler.ResendOTP)
 
@@ -62,6 +63,9 @@ func main() {
 		api.GET("/projects/:id", handler.GetProjectByID)
 		api.POST("/projects/:id/star", handler.ToggleStarProject)
 		api.POST("/projects/:id/invitations", handler.CreateProjectInviteLink)
+		api.DELETE("/projects/:id/members/:userId", handler.RemoveProjectMember)
+		api.PATCH("/projects/:id/members/:userId/role", handler.UpdateProjectMemberRole)
+		api.PATCH("/projects/:id/visibility", handler.UpdateProjectVisibility)
 		api.GET("/invitations/:token", handler.ValidateInviteToken)
 		api.POST("/invitations/:token/accept", handler.JoinProjectByToken)
 

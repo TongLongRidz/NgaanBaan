@@ -18,6 +18,7 @@ type Project struct {
 	ID           string     `json:"id"`
 	Title        string     `json:"title"`
 	Description  string     `json:"description"`
+	Visibility   string     `json:"visibility,omitempty"`
 	Role         string     `json:"role,omitempty"`
 	MembersCount int        `json:"members_count"`
 	IsStarred    bool       `json:"is_starred"`
@@ -57,6 +58,8 @@ type Column struct {
 	ID        string    `json:"id"`
 	ProjectID string    `json:"project_id"`
 	Name      string    `json:"name"`
+	NameTH    string    `json:"name_th,omitempty"`
+	NameEN    string    `json:"name_en,omitempty"`
 	Position  int       `json:"position"`
 	Tasks     []Task    `json:"tasks"`
 	CreatedAt time.Time `json:"created_at"`

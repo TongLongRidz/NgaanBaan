@@ -77,6 +77,11 @@ func InitDB() *sql.DB {
 				log.Printf("Warning: init.sql file not found: %v", err)
 			}
 		}
+
+		// Auto migration for visibility column in projects table & name_th, name_en in columns table
+		_, _ = DB.Exec("ALTER TABLE projects ADD COLUMN IF NOT EXISTS visibility VARCHAR(20) NOT NULL DEFAULT 'team'")
+		_, _ = DB.Exec("ALTER TABLE columns ADD COLUMN IF NOT EXISTS name_th VARCHAR(100)")
+		_, _ = DB.Exec("ALTER TABLE columns ADD COLUMN IF NOT EXISTS name_en VARCHAR(100)")
 	}
 
 	return DB

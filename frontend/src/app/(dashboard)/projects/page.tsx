@@ -7,7 +7,7 @@ export default function BoardsRedirectPage() {
 	const router = useRouter();
 
 	useEffect(() => {
-		router.replace("/projects/recent");
+		router.replace("/home");
 	}, [router]);
 
 	return null;

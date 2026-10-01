@@ -7,6 +7,7 @@ import { ProjectActivityView } from "@/components/project/ProjectActivityView";
 import { ProjectCalendarView } from "@/components/project/ProjectCalendarView";
 import { ProjectGanttView } from "@/components/project/ProjectGanttView";
 import { ProjectKanbanView } from "@/components/project/ProjectKanbanView";
+import { ProjectMembersView } from "@/components/project/ProjectMembersView";
 import { ProjectSettingsView } from "@/components/project/ProjectSettingsView";
 import {
 	ProjectSubNavbar,
@@ -32,6 +33,8 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
 	const [members, setMembers] = useState<ProjectMember[]>([]);
 	const [projectTitle, setProjectTitle] = useState("");
 	const [projectDescription, setProjectDescription] = useState("");
+	const [userRole, setUserRole] = useState<string>("Owner");
+	const [projectVisibility, setProjectVisibility] = useState<"team" | "private" | "public">("team");
 	const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 	const [loading, setLoading] = useState(true);
 
@@ -51,6 +54,12 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
 					if (data.project) {
 						setProjectTitle(data.project.title);
 						setProjectDescription(data.project.description);
+						if (data.project.visibility) {
+							setProjectVisibility(data.project.visibility as any);
+						}
+						if (data.project.role) {
+							setUserRole(data.project.role);
+						}
 					}
 					if (data.columns) setColumns(data.columns);
 					if (data.activities) setActivities(data.activities);
@@ -69,47 +78,54 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
 		fetchProjectDetails();
 	}, [projectId]);
 
-	// Tab State: Summary -> Kanban Board -> Gantt Chart -> Calendar -> Activity -> Settings
-	const [activeTab, setActiveTabState] = useState<
-		"summary" | "kanban" | "gantt" | "calendar" | "activity" | "settings"
-	>(() => {
+	// Tab State: Summary -> Kanban Board -> Gantt Chart -> Calendar -> Activity -> Members -> Settings
+	const [activeTab, setActiveTabState] = useState<ProjectSubTab>(() => {
 		if (typeof window !== "undefined") {
 			try {
-				const savedTab = localStorage.getItem(`project_tab_${projectId}`);
-				const validTabs = [
-					"summary",
-					"kanban",
-					"gantt",
-					"calendar",
-					"activity",
-					"settings",
-				];
-				if (savedTab && validTabs.includes(savedTab)) {
-					return savedTab as any;
+				const navEntries = performance.getEntriesByType("navigation");
+				const isReload =
+					navEntries.length > 0 &&
+					(navEntries[0] as PerformanceNavigationTiming).type === "reload";
+
+				if (isReload) {
+					const savedTab = sessionStorage.getItem(`project_tab_${projectId}`);
+					const validTabs: ProjectSubTab[] = [
+						"summary",
+						"kanban",
+						"gantt",
+						"calendar",
+						"activity",
+						"members",
+						"settings",
+					];
+					if (savedTab && validTabs.includes(savedTab as any)) {
+						return savedTab as ProjectSubTab;
+					}
 				}
 			} catch {}
 		}
 		return "summary";
 	});
 
-	// Clean up any legacy ?tab= query param from URL address bar while saving to localStorage
+	// Clean up any legacy ?tab= query param from URL address bar while saving to sessionStorage
 	useEffect(() => {
 		if (typeof window !== "undefined") {
 			const urlParams = new URLSearchParams(window.location.search);
 			const tabParam = urlParams.get("tab");
-			const validTabs = [
+			const validTabs: ProjectSubTab[] = [
 				"summary",
 				"kanban",
 				"gantt",
 				"calendar",
 				"activity",
+				"members",
 				"settings",
 			];
 
-			if (tabParam && validTabs.includes(tabParam)) {
-				setActiveTabState(tabParam as any);
+			if (tabParam && validTabs.includes(tabParam as any)) {
+				setActiveTabState(tabParam as ProjectSubTab);
 				try {
-					localStorage.setItem(`project_tab_${projectId}`, tabParam);
+					sessionStorage.setItem(`project_tab_${projectId}`, tabParam);
 				} catch {}
 			}
 
@@ -120,13 +136,11 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
 		}
 	}, [projectId]);
 
-	// Tab Change handler that updates local state & localStorage WITHOUT adding ?tab= to URL bar
-	const handleTabChange = (
-		tab: "summary" | "kanban" | "gantt" | "calendar" | "activity" | "settings",
-	) => {
+	// Tab Change handler that updates local state & sessionStorage WITHOUT adding ?tab= to URL bar
+	const handleTabChange = (tab: ProjectSubTab) => {
 		setActiveTabState(tab);
 		try {
-			localStorage.setItem(`project_tab_${projectId}`, tab);
+			sessionStorage.setItem(`project_tab_${projectId}`, tab);
 		} catch {}
 	};
 
@@ -184,17 +198,52 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
 		setMembers((prev) => [...prev, newMember]);
 	};
 
-	const handleRoleChange = (
+	const handleRoleChange = async (
 		memberId: string,
 		newRole: "Owner" | "Editor" | "Viewer",
 	) => {
 		setMembers((prev) =>
 			prev.map((m) => (m.id === memberId ? { ...m, role: newRole } : m)),
 		);
+		try {
+			const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+			await fetch(`${apiUrl}/api/projects/${projectId}/members/${memberId}/role`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({ role: newRole }),
+			});
+		} catch (err) {
+			console.error("Failed to update role:", err);
+		}
 	};
 
-	const handleRemoveMember = (memberId: string) => {
+	const handleRemoveMember = async (memberId: string) => {
 		setMembers((prev) => prev.filter((m) => m.id !== memberId));
+		try {
+			const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+			await fetch(`${apiUrl}/api/projects/${projectId}/members/${memberId}`, {
+				method: "DELETE",
+				credentials: "include",
+			});
+		} catch (err) {
+			console.error("Failed to remove member:", err);
+		}
+	};
+
+	const handleVisibilityChange = async (newVisibility: "team" | "private" | "public") => {
+		setProjectVisibility(newVisibility);
+		try {
+			const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+			await fetch(`${apiUrl}/api/projects/${projectId}/visibility`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({ visibility: newVisibility }),
+			});
+		} catch (err) {
+			console.error("Failed to update project visibility:", err);
+		}
 	};
 
 	const handleSaveSettings = () => {};
@@ -221,13 +270,22 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
 
 	return (
 		<>
-			<TopNavbar title={projectTitle} />
+			<TopNavbar title={projectTitle} description={projectDescription} />
 
-			{/* Project Header Sub Navbar */}
-			<ProjectSubNavbar activeTab={activeTab} setActiveTab={handleTabChange} />
+			{/* Project Sub Tabs Navigation Row */}
+			<ProjectSubNavbar
+				activeTab={activeTab}
+				setActiveTab={handleTabChange}
+				userRole={userRole}
+			/>
 
 			{/* Render Subpage Components */}
-			{activeTab === "summary" && <ProjectSummaryView columns={columns} />}
+			{activeTab === "summary" && (
+				<ProjectSummaryView
+					columns={columns}
+					projectDescription={projectDescription}
+				/>
+			)}
 			{activeTab === "kanban" && (
 				<ProjectKanbanView
 					columns={columns}
@@ -235,9 +293,26 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
 				/>
 			)}
 			{activeTab === "gantt" && <ProjectGanttView columns={columns} />}
-			{activeTab === "calendar" && <ProjectCalendarView columns={columns} />}
+			{activeTab === "calendar" && (
+				<ProjectCalendarView
+					columns={columns}
+					onSelectTask={(task) => setSelectedTask(task)}
+				/>
+			)}
 			{activeTab === "activity" && (
 				<ProjectActivityView activities={activities} />
+			)}
+			{activeTab === "members" && (
+				<ProjectMembersView
+					projectId={projectId}
+					members={members}
+					userRole={userRole}
+					projectVisibility={projectVisibility}
+					onVisibilityChange={handleVisibilityChange}
+					onAddMember={handleAddMember}
+					onRoleChange={handleRoleChange}
+					onRemoveMember={handleRemoveMember}
+				/>
 			)}
 			{activeTab === "settings" && (
 				<ProjectSettingsView
@@ -246,10 +321,6 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
 					setProjectTitle={setProjectTitle}
 					projectDescription={projectDescription}
 					setProjectDescription={setProjectDescription}
-					members={members}
-					onAddMember={handleAddMember}
-					onRoleChange={handleRoleChange}
-					onRemoveMember={handleRemoveMember}
 					onSaveSettings={handleSaveSettings}
 				/>
 			)}
