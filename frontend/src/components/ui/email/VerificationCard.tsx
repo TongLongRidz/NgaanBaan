@@ -28,6 +28,7 @@ interface VerificationCardProps {
 	onVerifyOtp: (e: React.FormEvent) => void;
 	onResendOtp: () => void;
 	onBackToLogin?: () => void;
+	onBypass?: () => void;
 }
 
 export function EmailVerificationCard({
@@ -40,6 +41,7 @@ export function EmailVerificationCard({
 	loading,
 	onVerifyOtp,
 	onResendOtp,
+	onBypass,
 }: VerificationCardProps) {
 	const { language, t } = useLanguage();
 	const { theme } = useTheme();
@@ -211,8 +213,34 @@ export function EmailVerificationCard({
 				</button>
 			</form>
 
+			{/* Dev Helper & Bypass Buttons */}
+			<div className="mt-4 pt-3 border-t border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+				{onBypass && (
+					<button
+						type="button"
+						onClick={onBypass}
+						disabled={loading}
+						className="w-full py-2 px-3 font-semibold rounded-xl text-xs transition-all flex items-center justify-center space-x-2 border bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30 cursor-pointer"
+					>
+						<Sparkles className="w-3.5 h-3.5" />
+						<span>⚡ Dev Bypass Verification (ข้ามการยืนยัน OTP)</span>
+					</button>
+				)}
+
+				{devOtpCode && (
+					<button
+						type="button"
+						onClick={() => setOtpCode(devOtpCode)}
+						className="w-full py-1.5 px-3 rounded-lg text-[11px] font-mono transition-colors flex items-center justify-between bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700/60 cursor-pointer"
+					>
+						<span>รหัส OTP ล่าสุด: <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{devOtpCode}</strong></span>
+						<span className="text-[10px] text-indigo-500 font-semibold underline">คลิกเพื่อกรอกอัตโนมัติ</span>
+					</button>
+				)}
+			</div>
+
 			{/* Resend OTP Section */}
-			<div className="mt-4 text-center">
+			<div className="mt-2 text-center">
 				<button
 					type="button"
 					onClick={() => {

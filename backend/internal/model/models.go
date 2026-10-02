@@ -21,7 +21,8 @@ type Project struct {
 	Visibility   string     `json:"visibility,omitempty"`
 	Role         string     `json:"role,omitempty"`
 	MembersCount int        `json:"members_count"`
-	IsStarred    bool       `json:"is_starred"`
+	IsPinned     bool       `json:"is_pinned"`
+	PinPosition  int        `json:"pin_position,omitempty"`
 	LastViewedAt *time.Time `json:"last_viewed_at,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
@@ -136,17 +137,28 @@ type ProjectActivity struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type MyTaskItem struct {
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	Priority    string     `json:"priority"`
+	IsCompleted bool       `json:"is_completed"`
+	BoardID     string     `json:"board_id,omitempty"`
+	BoardName   string     `json:"board_name,omitempty"`
+	DueDate     *time.Time `json:"due_date,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
 type LoginAuditLog struct {
-	ID                string    `bson:"_id,omitempty" json:"id"`
-	Timestamp         time.Time `bson:"timestamp" json:"timestamp"`
-	AttemptedEmail    string    `bson:"attempted_email" json:"attempted_email"`
-	AttemptedPassword string    `bson:"attempted_password" json:"attempted_password"`
-	AttemptedRound    int       `bson:"attempted_round" json:"attempted_round"`
-	AttemptedTime     int       `bson:"attempted_time" json:"attempted_time"`
-	Status            string    `bson:"status" json:"status"` // "success" or "failed"
-	Reason            string    `bson:"reason,omitempty" json:"reason,omitempty"`
-	IPAddress         string    `bson:"ip_address" json:"ip_address"`
-	UserAgent         string    `bson:"user_agent" json:"user_agent"`
+	ID             string    `bson:"_id,omitempty" json:"id"`
+	Timestamp      time.Time `bson:"timestamp" json:"timestamp"`
+	AttemptedEmail string    `bson:"attempted_email" json:"attempted_email"`
+	AttemptedRound int       `bson:"attempted_round" json:"attempted_round"`
+	AttemptedTime  int       `bson:"attempted_time" json:"attempted_time"`
+	Status         string    `bson:"status" json:"status"` // "success" or "failed"
+	Reason         string    `bson:"reason,omitempty" json:"reason,omitempty"`
+	IPAddress      string    `bson:"ip_address" json:"ip_address"`
+	UserAgent      string    `bson:"user_agent" json:"user_agent"`
 }
 
 type EmailVerificationAuditLog struct {

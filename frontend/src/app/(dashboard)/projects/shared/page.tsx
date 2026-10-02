@@ -1,8 +1,9 @@
 "use client";
 
-import { FolderKanban, Grid, Users } from "lucide-react";
+import { Eye, FolderKanban, Grid, Pin, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { TopNavbar } from "@/components/ui/TopNavbar";
 import { useLanguage } from "@/hooks/useLanguage";
 
@@ -11,6 +12,8 @@ interface Project {
 	title: string;
 	description: string;
 	members_count: number;
+	is_pinned?: boolean;
+	last_viewed_at?: string;
 	updated_at: string;
 }
 
@@ -19,32 +22,86 @@ export default function SharedProjectsPage() {
 	const [projects, setProjects] = useState<Project[]>([]);
 	const [loading, setLoading] = useState(true);
 
-	useEffect(() => {
-		const fetchSharedProjects = async () => {
-			try {
-				const apiUrl =
-					process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-				const res = await fetch(`${apiUrl}/api/projects`, {
-					credentials: "include",
-				});
-				if (res.ok) {
-					const data = await res.json();
-					if (Array.isArray(data)) {
-						const sharedOnly = data.filter(
-							(p: any) => p.role && p.role !== "owner",
-						);
-						setProjects(sharedOnly);
-					}
-				}
-			} catch (err) {
-				console.error("Failed to fetch shared projects:", err);
-			} finally {
-				setLoading(false);
-			}
-		};
+	const formatRelativeTime = (dateStr?: string) => {
+		if (!dateStr) return "";
+		const date = new Date(dateStr);
+		const now = new Date();
+		let diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
+		if (isNaN(diffInSeconds)) return "";
+		if (diffInSeconds < 0) diffInSeconds = 1;
+
+		const secondsInMinute = 60;
+		const secondsInHour = 3600;
+		const secondsInDay = 86400;
+
+		if (diffInSeconds < secondsInMinute) {
+			const sec = Math.max(1, diffInSeconds);
+			return `${sec} วินาทีที่แล้ว`;
+		} else if (diffInSeconds < secondsInHour) {
+			const min = Math.floor(diffInSeconds / secondsInMinute);
+			return `${min} นาทีที่แล้ว`;
+		} else if (diffInSeconds < secondsInDay) {
+			const hr = Math.floor(diffInSeconds / secondsInHour);
+			return `${hr} ชั่วโมงที่แล้ว`;
+		} else {
+			const days = Math.floor(diffInSeconds / secondsInDay);
+			return `${days} วันที่แล้ว`;
+		}
+	};
+
+	const fetchSharedProjects = async () => {
+		try {
+			const apiUrl =
+				process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+			const res = await fetch(`${apiUrl}/api/projects`, {
+				credentials: "include",
+			});
+			if (res.ok) {
+				const data = await res.json();
+				if (Array.isArray(data)) {
+					const sharedOnly = data.filter(
+						(p: any) => p.role && p.role.toLowerCase() !== "owner",
+					);
+					setProjects(sharedOnly);
+				}
+			}
+		} catch (err) {
+			console.error("Failed to fetch shared projects:", err);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	useEffect(() => {
 		fetchSharedProjects();
 	}, []);
+
+	const togglePin = async (e: React.MouseEvent, projectId: string) => {
+		e.preventDefault();
+		e.stopPropagation();
+		try {
+			const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+			const res = await fetch(`${apiUrl}/api/projects/${projectId}/pin`, {
+				method: "POST",
+				credentials: "include",
+			});
+			if (res.ok) {
+				const data = await res.json();
+				toast.success(
+					data.is_pinned
+						? t("projects.pinned_success") || "ปักหมุดโปรเจกต์แล้ว"
+						: t("projects.unpinned_success") || "ยกเลิกการปักหมุดแล้ว",
+				);
+				fetchSharedProjects();
+				if (typeof window !== "undefined") {
+					window.dispatchEvent(new Event("projects-updated"));
+				}
+			}
+		} catch (err) {
+			console.error("Failed to pin project:", err);
+		}
+	};
 
 	return (
 		<>
@@ -91,9 +148,24 @@ export default function SharedProjectsPage() {
 										<div className="h-8 w-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
 											<Grid className="h-4 w-4" />
 										</div>
-										<span className="text-[10px] font-medium text-[var(--muted-foreground)] px-2.5 py-1 rounded-full bg-[var(--input-bg)] border border-[var(--card-border)]">
-											{project.updated_at}
-										</span>
+										<div className="flex items-center gap-2">
+											<button
+												type="button"
+												onClick={(e) => togglePin(e, project.id)}
+												title={project.is_pinned ? "ยกเลิกปักหมุด" : "ปักหมุดโปรเจกต์"}
+												className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+													project.is_pinned
+														? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+														: "bg-[var(--input-bg)] border-[var(--card-border)] text-[var(--muted-foreground)] hover:text-indigo-400 hover:border-indigo-500/30"
+												}`}
+											>
+												<Pin className={`h-3.5 w-3.5 ${project.is_pinned ? "fill-indigo-400" : ""}`} />
+											</button>
+											<span className="inline-flex items-center gap-1 text-[10px] font-medium text-[var(--muted-foreground)] px-2.5 py-1 rounded-full bg-[var(--input-bg)] border border-[var(--card-border)]">
+												<Eye className="h-3 w-3 text-[var(--muted-foreground)]" />
+												{formatRelativeTime(project.last_viewed_at || project.updated_at)}
+											</span>
+										</div>
 									</div>
 
 									<h3 className="font-bold text-base text-[var(--foreground)] group-hover:text-indigo-400 transition-colors mb-2">

@@ -52,9 +52,8 @@ export function TaskListView({
 				const res = await fetch(`${apiUrl}/api/tasks/my-tasks`, { credentials: "include" });
 				if (res.ok) {
 					const data = await res.json();
-					if (Array.isArray(data)) {
-						setTasks(data);
-					}
+					const items = Array.isArray(data) ? data : data.tasks || [];
+					setTasks(items);
 				}
 			} catch (err) {
 				console.error("Failed to fetch my tasks:", err);
@@ -108,16 +107,7 @@ export function TaskListView({
 
 				{/* Task List Container */}
 				<div className="p-6 rounded-3xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-xs space-y-4">
-					{loading ? (
-						<div className="space-y-3">
-							{[1, 2, 3, 4].map((i) => (
-								<div
-									key={i}
-									className="h-14 rounded-2xl bg-[var(--input-bg)] animate-pulse border border-[var(--card-border)]"
-								/>
-							))}
-						</div>
-					) : filteredTasks.length > 0 ? (
+					{filteredTasks.length > 0 ? (
 						<div className="space-y-2.5">
 							{filteredTasks.map((task) => (
 								<div

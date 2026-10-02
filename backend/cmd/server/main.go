@@ -59,9 +59,9 @@ func main() {
 		api.GET("/projects", handler.GetProjects)
 		api.POST("/projects", handler.CreateProject)
 		api.GET("/projects/recent", handler.GetRecentProjects)
-		api.GET("/projects/starred", handler.GetStarredProjects)
+		api.GET("/projects/pinned", handler.GetPinnedProjects)
 		api.GET("/projects/:id", handler.GetProjectByID)
-		api.POST("/projects/:id/star", handler.ToggleStarProject)
+		api.POST("/projects/:id/pin", handler.TogglePinProject)
 		api.POST("/projects/:id/invitations", handler.CreateProjectInviteLink)
 		api.DELETE("/projects/:id/members/:userId", handler.RemoveProjectMember)
 		api.PATCH("/projects/:id/members/:userId/role", handler.UpdateProjectMemberRole)
@@ -69,7 +69,8 @@ func main() {
 		api.GET("/invitations/:token", handler.ValidateInviteToken)
 		api.POST("/invitations/:token/accept", handler.JoinProjectByToken)
 
-		// Subtasks Endpoints
+		// Tasks & Subtasks Endpoints
+		api.GET("/tasks/my-tasks", handler.GetMyTasks)
 		api.PATCH("/subtasks/:id/toggle", handler.ToggleSubtask)
 	}
 

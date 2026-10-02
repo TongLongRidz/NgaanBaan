@@ -4,6 +4,7 @@ import { FolderKanban, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useLanguage } from "@/hooks/useLanguage";
 
 interface CreateProjectModalProps {
@@ -22,19 +23,17 @@ export function CreateProjectModal({
 	const [newTitle, setNewTitle] = useState("");
 	const [newDesc, setNewDesc] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [errorMsg, setErrorMsg] = useState("");
 
 	if (!isOpen) return null;
 
 	const handleCreateProject = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!newTitle.trim()) {
-			setErrorMsg(t("empty.title_label") || "Project title is required");
+			toast.error(t("empty.title_label") || "Project title is required");
 			return;
 		}
 
 		setIsSubmitting(true);
-		setErrorMsg("");
 
 		try {
 			const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -54,15 +53,20 @@ export function CreateProjectModal({
 
 			if (!res.ok) {
 				const errData = await res.json().catch(() => ({}));
-				throw new Error(
-					errData.message || errData.error || "Failed to create project",
-				);
+				const errMsg = errData.message || errData.error || "Failed to create project";
+				toast.error(errMsg);
+				return;
 			}
 
 			const created = await res.json();
+			toast.success(t("boards.created_success") || "โปรเจกต์ถูกสร้างเรียบร้อยแล้ว");
 			setNewTitle("");
 			setNewDesc("");
 			onClose();
+
+			if (typeof window !== "undefined") {
+				window.dispatchEvent(new Event("project-created"));
+			}
 
 			if (onProjectCreated) {
 				onProjectCreated();
@@ -72,7 +76,7 @@ export function CreateProjectModal({
 				window.location.reload();
 			}
 		} catch (err: any) {
-			setErrorMsg(err.message || "An error occurred");
+			toast.error(err.message || "An error occurred");
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -105,12 +109,6 @@ export function CreateProjectModal({
 						<X className="w-5 h-5" />
 					</button>
 				</div>
-
-				{errorMsg && (
-					<div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-medium text-left">
-						{errorMsg}
-					</div>
-				)}
 
 				<form onSubmit={handleCreateProject} className="space-y-4 text-left">
 					<div>

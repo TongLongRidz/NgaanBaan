@@ -177,12 +177,12 @@ var (
 	trackers     = make(map[string]*LoginTracker)
 )
 
-// CheckLoginRateLimit checks if the email is locked out. Returns remaining lock seconds and error if locked.
-func CheckLoginRateLimit(email string) (int, error) {
+// CheckLoginRateLimit checks if the IP address is locked out. Returns remaining lock seconds and error if locked.
+func CheckLoginRateLimit(ipAddress string) (int, error) {
 	trackerMutex.Lock()
 	defer trackerMutex.Unlock()
 
-	tracker, exists := trackers[email]
+	tracker, exists := trackers[ipAddress]
 	if !exists {
 		return 0, nil
 	}
@@ -190,23 +190,23 @@ func CheckLoginRateLimit(email string) (int, error) {
 	now := time.Now()
 	if now.Before(tracker.LockedUntil) {
 		remainingSec := int(time.Until(tracker.LockedUntil).Seconds()) + 1
-		return remainingSec, fmt.Errorf("Too many failed attempts. Account locked for %d seconds", remainingSec)
+		return remainingSec, fmt.Errorf("Too many failed login attempts from this IP. Locked for %d seconds", remainingSec)
 	}
 
 	return 0, nil
 }
 
-// RecordLoginAttempt updates rate limiting, rounds, attempt count, and logs to MongoDB.
-func RecordLoginAttempt(email, password, ipAddress, userAgent string, isSuccess bool, reason string) (int, int, error) {
+// RecordLoginAttempt updates rate limiting by IP address, rounds, attempt count, and logs to MongoDB without storing passwords.
+func RecordLoginAttempt(email, ipAddress, userAgent string, isSuccess bool, reason string) (int, int, error) {
 	trackerMutex.Lock()
 	
-	tracker, exists := trackers[email]
+	tracker, exists := trackers[ipAddress]
 	if !exists {
 		tracker = &LoginTracker{
 			TotalAttempts: 0,
 			TotalRounds:   1,
 		}
-		trackers[email] = tracker
+		trackers[ipAddress] = tracker
 	}
 
 	// Check if previous lock has expired, reset attempt counter for new round if needed
@@ -228,8 +228,8 @@ func RecordLoginAttempt(email, password, ipAddress, userAgent string, isSuccess 
 		tracker.TotalAttempts = 0
 		trackerMutex.Unlock()
 
-		// Async write log to Mongo (do not store password on successful login)
-		go saveAuditLog(email, "", attemptRound, attemptTime, "success", reason, ipAddress, userAgent)
+		// Async write log to Mongo
+		go saveAuditLog(email, attemptRound, attemptTime, "success", reason, ipAddress, userAgent)
 		return attemptRound, attemptTime, nil
 	}
 
@@ -242,34 +242,33 @@ func RecordLoginAttempt(email, password, ipAddress, userAgent string, isSuccess 
 	attemptRound := tracker.TotalRounds
 
 	if tracker.TotalAttempts >= 5 {
-		reason = fmt.Sprintf("%s (Attempt 5/5: Account locked for 30 seconds)", reason)
+		reason = fmt.Sprintf("%s (Attempt 5/5: IP locked for 30 seconds)", reason)
 		tracker.LockedUntil = now.Add(30 * time.Second)
 		tracker.TotalRounds++
 	}
 
 	trackerMutex.Unlock()
 
-	// Async write log to Mongo
-	go saveAuditLog(email, password, attemptRound, attemptTime, "failed", reason, ipAddress, userAgent)
+	// Async write log to Mongo (never store raw password)
+	go saveAuditLog(email, attemptRound, attemptTime, "failed", reason, ipAddress, userAgent)
 
 	return attemptRound, attemptTime, nil
 }
 
-func saveAuditLog(email, password string, round, count int, status, reason, ipAddress, userAgent string) {
+func saveAuditLog(email string, round, count int, status, reason, ipAddress, userAgent string) {
 	if MongoCollection == nil {
 		return
 	}
 
 	logEntry := model.LoginAuditLog{
-		Timestamp:         time.Now(),
-		AttemptedEmail:    email,
-		AttemptedPassword: password,
-		AttemptedRound:    round,
-		AttemptedTime:     count,
-		Status:            status,
-		Reason:            reason,
-		IPAddress:         ipAddress,
-		UserAgent:         userAgent,
+		Timestamp:      time.Now(),
+		AttemptedEmail: email,
+		AttemptedRound: round,
+		AttemptedTime:  count,
+		Status:         status,
+		Reason:         reason,
+		IPAddress:      ipAddress,
+		UserAgent:      userAgent,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

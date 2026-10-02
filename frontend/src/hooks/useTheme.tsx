@@ -55,6 +55,9 @@ function InternalThemeProvider({
 
 	useEffect(() => {
 		setMounted(true);
+		if (typeof window !== "undefined") {
+			localStorage.removeItem("theme");
+		}
 	}, []);
 
 	useEffect(() => {
@@ -136,7 +139,8 @@ export function ThemeProvider({
 			attribute="class"
 			defaultTheme={initialTheme || "light"}
 			enableSystem={false}
-			storageKey="theme"
+			enableColorScheme={false}
+			storageKey="theme-disabled"
 			scriptProps={{ id: "next-theme-script" }}
 		>
 			<InternalThemeProvider initialTheme={initialTheme}>

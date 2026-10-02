@@ -12,9 +12,10 @@ import {
 	Home,
 	Layout,
 	LayoutDashboard,
+	MoreHorizontal,
 	PanelLeftClose,
 	PanelLeftOpen,
-	Star,
+	Pin,
 	User,
 	UserCheck,
 	Users,
@@ -22,6 +23,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useLanguage } from "@/hooks/useLanguage";
 
 // Cookie Helper Utilities
@@ -91,8 +93,6 @@ export function SideNavbar() {
 				mainRoute = "/my-tasks";
 			} else if (pathname.startsWith("/projects/recent") || pathname.startsWith("/projects/recently")) {
 				mainRoute = "/projects/recent";
-			} else if (pathname.startsWith("/projects/starred")) {
-				mainRoute = "/projects/starred";
 			} else if (pathname.startsWith("/projects/shared")) {
 				mainRoute = "/projects/shared";
 			} else if (pathname.startsWith("/projects/mine")) {
@@ -170,14 +170,62 @@ export function SideNavbar() {
 	};
 
 	const [recentProjects, setRecentProjects] = useState<
-		Array<{ id: string; title: string; href: string }>
+		Array<{ id: string; title: string; href: string; is_pinned?: boolean }>
 	>([]);
 	const [myProjects, setMyProjects] = useState<
-		Array<{ id: string; title: string; href: string }>
+		Array<{ id: string; title: string; href: string; is_pinned?: boolean }>
 	>([]);
 	const [sharedProjects, setSharedProjects] = useState<
-		Array<{ id: string; title: string; href: string }>
+		Array<{ id: string; title: string; href: string; is_pinned?: boolean }>
 	>([]);
+
+	const [confirmModalState, setConfirmModalState] = useState<{
+		isOpen: boolean;
+		projectId: string;
+		projectTitle: string;
+		isPinned: boolean;
+	}>({
+		isOpen: false,
+		projectId: "",
+		projectTitle: "",
+		isPinned: false,
+	});
+
+	const requestTogglePin = (e: React.MouseEvent, projectId: string, projectTitle: string, isPinned: boolean) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setConfirmModalState({
+			isOpen: true,
+			projectId,
+			projectTitle,
+			isPinned,
+		});
+	};
+
+	const handleConfirmPinToggle = async () => {
+		const { projectId, isPinned } = confirmModalState;
+		setConfirmModalState((prev) => ({ ...prev, isOpen: false }));
+		try {
+			const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+			const res = await fetch(`${apiUrl}/api/projects/${projectId}/pin`, {
+				method: "POST",
+				credentials: "include",
+			});
+			if (res.ok) {
+				const data = await res.json();
+				toast.success(
+					data.is_pinned
+						? t("projects.pinned_success") || "ปักหมุดโปรเจกต์แล้ว"
+						: t("projects.unpinned_success") || "ยกเลิกการปักหมุดแล้ว",
+				);
+				if (typeof window !== "undefined") {
+					window.dispatchEvent(new Event("projects-updated"));
+				}
+			}
+		} catch (err) {
+			console.error("Failed to pin project:", err);
+		}
+	};
 
 	useEffect(() => {
 		const fetchSidebarProjects = async () => {
@@ -199,6 +247,7 @@ export function SideNavbar() {
 						id: p.id,
 						title: p.title,
 						href: `/projects/${p.id}`,
+						is_pinned: p.is_pinned,
 					}));
 					setRecentProjects(mapped);
 				}
@@ -211,21 +260,23 @@ export function SideNavbar() {
 					const data = await myRes.json();
 					if (Array.isArray(data)) {
 						const mine = data
-							.filter((p: any) => !p.role || p.role === "owner")
+							.filter((p: any) => !p.role || p.role.toLowerCase() === "owner")
 							.slice(0, 10)
 							.map((p: any) => ({
 								id: p.id,
 								title: p.title,
 								href: `/projects/${p.id}`,
+								is_pinned: p.is_pinned,
 							}));
 
 						const shared = data
-							.filter((p: any) => p.role && p.role !== "owner")
+							.filter((p: any) => p.role && p.role.toLowerCase() !== "owner")
 							.slice(0, 10)
 							.map((p: any) => ({
 								id: p.id,
 								title: p.title,
 								href: `/projects/${p.id}`,
+								is_pinned: p.is_pinned,
 							}));
 
 						setMyProjects(mine);
@@ -238,6 +289,22 @@ export function SideNavbar() {
 		};
 
 		fetchSidebarProjects();
+
+		const handleUpdate = () => {
+			fetchSidebarProjects();
+		};
+
+		if (typeof window !== "undefined") {
+			window.addEventListener("project-created", handleUpdate);
+			window.addEventListener("projects-updated", handleUpdate);
+		}
+
+		return () => {
+			if (typeof window !== "undefined") {
+				window.removeEventListener("project-created", handleUpdate);
+				window.removeEventListener("projects-updated", handleUpdate);
+			}
+		};
 	}, []);
 
 	const myTasksSubItems = [
@@ -429,28 +496,6 @@ export function SideNavbar() {
 							)}
 						</div>
 
-						{/* Starred */}
-						<Link
-							href="/projects/starred"
-							title={isCollapsed ? `${t("nav.starred")}` : undefined}
-							className={`flex items-center ${isCollapsed ? "justify-center" : "justify-between"} px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 ${
-								pathname === "/projects/starred"
-									? "bg-[var(--input-bg)] text-[var(--foreground)] font-semibold"
-									: "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--input-bg)]"
-							}`}
-						>
-							<div className="flex items-center gap-3 min-w-0">
-								<Star
-									className={`h-4 w-4 shrink-0 transition-transform duration-200 ${pathname === "/projects/starred" ? "text-[var(--foreground)] scale-110" : "text-[var(--muted-foreground)]"}`}
-								/>
-								<span
-									className={`truncate transition-all duration-300 ${isCollapsed ? "opacity-0 w-0 hidden" : "opacity-100 w-auto"}`}
-								>
-									{t("nav.starred")}
-								</span>
-							</div>
-						</Link>
-
 						{/* Shared with me Section with Dropdown Submenu */}
 						<div>
 							<div
@@ -495,24 +540,43 @@ export function SideNavbar() {
 										const isActive =
 											pathname === project.href && lastMainPage === "/projects/shared";
 										return (
-											<Link
+											<div
 												key={`shared-${project.id}`}
-												href={project.href}
-												onClick={() => {
-													try {
-														sessionStorage.setItem("last_main_page", "/projects/shared");
-														setLastMainPage("/projects/shared");
-													} catch {}
-												}}
-												className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+												className={`relative group/item flex items-center justify-between rounded-lg pr-1 transition-all ${
 													isActive
 														? "bg-[var(--input-bg)] text-[var(--foreground)] font-semibold"
-														: "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--input-bg)]"
+														: "hover:bg-[var(--input-bg)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
 												}`}
 											>
-												<Layout className="h-3 w-3 text-indigo-400 shrink-0" />
-												<span className="truncate">{project.title}</span>
-											</Link>
+												<Link
+													href={project.href}
+													onClick={() => {
+														try {
+															sessionStorage.setItem("last_main_page", "/projects/shared");
+															setLastMainPage("/projects/shared");
+														} catch {}
+													}}
+													className="flex-1 flex items-center gap-2.5 px-2.5 py-1.5 min-w-0 text-[11px] font-medium"
+												>
+													<Layout className="h-3 w-3 text-indigo-400 shrink-0" />
+													<span className="truncate">{project.title}</span>
+												</Link>
+
+												<button
+													type="button"
+													onClick={(e) => requestTogglePin(e, project.id, project.title, !!project.is_pinned)}
+													className="p-1 rounded-md transition-all cursor-pointer shrink-0"
+													title={project.is_pinned ? "ยกเลิกปักหมุด" : "ปักหมุดโปรเจกต์"}
+												>
+													<Pin
+														className={`h-3.5 w-3.5 transition-all ${
+															project.is_pinned
+																? "fill-blue-500 text-blue-500 opacity-100"
+																: "text-[var(--muted-foreground)] opacity-0 group-hover/item:opacity-100 hover:text-blue-500"
+														}`}
+													/>
+												</button>
+											</div>
 										);
 									})}
 								</div>
@@ -564,24 +628,43 @@ export function SideNavbar() {
 											pathname === project.href &&
 											(lastMainPage === "/projects/mine" || lastMainPage === "/projects");
 										return (
-											<Link
+											<div
 												key={`my-${project.id}`}
-												href={project.href}
-												onClick={() => {
-													try {
-														sessionStorage.setItem("last_main_page", "/projects/mine");
-														setLastMainPage("/projects/mine");
-													} catch {}
-												}}
-												className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+												className={`relative group/item flex items-center justify-between rounded-lg pr-1 transition-all ${
 													isActive
 														? "bg-[var(--input-bg)] text-[var(--foreground)] font-semibold"
-														: "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--input-bg)]"
+														: "hover:bg-[var(--input-bg)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
 												}`}
 											>
-												<Layout className="h-3 w-3 text-blue-500 shrink-0" />
-												<span className="truncate">{project.title}</span>
-											</Link>
+												<Link
+													href={project.href}
+													onClick={() => {
+														try {
+															sessionStorage.setItem("last_main_page", "/projects/mine");
+															setLastMainPage("/projects/mine");
+														} catch {}
+													}}
+													className="flex-1 flex items-center gap-2.5 px-2.5 py-1.5 min-w-0 text-[11px] font-medium"
+												>
+													<Layout className="h-3 w-3 text-blue-500 shrink-0" />
+													<span className="truncate">{project.title}</span>
+												</Link>
+
+												<button
+													type="button"
+													onClick={(e) => requestTogglePin(e, project.id, project.title, !!project.is_pinned)}
+													className="p-1 rounded-md transition-all cursor-pointer shrink-0"
+													title={project.is_pinned ? "ยกเลิกปักหมุด" : "ปักหมุดโปรเจกต์"}
+												>
+													<Pin
+														className={`h-3.5 w-3.5 transition-all ${
+															project.is_pinned
+																? "fill-blue-500 text-blue-500 opacity-100"
+																: "text-[var(--muted-foreground)] opacity-0 group-hover/item:opacity-100 hover:text-blue-500"
+														}`}
+													/>
+												</button>
+											</div>
 										);
 									})}
 								</div>
@@ -656,6 +739,46 @@ export function SideNavbar() {
 					</div>
 				</nav>
 			</div>
+
+			{/* Confirm Pin / Unpin Modal */}
+			{confirmModalState.isOpen && (
+				<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
+					<div className="w-full max-w-sm rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-6 shadow-2xl space-y-4 text-left">
+						<div className="flex items-center gap-3">
+							<div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-500">
+								<Pin className="h-5 w-5 fill-blue-500" />
+							</div>
+							<div>
+								<h3 className="font-bold text-base text-[var(--foreground)]">
+									{confirmModalState.isPinned ? "ยืนยันการยกเลิกปักหมุด" : "ยืนยันการปักหมุดโปรเจกต์"}
+								</h3>
+								<p className="text-xs text-[var(--muted-foreground)]">
+									{confirmModalState.isPinned ? "ต้องการยกเลิกปักหมุด" : "ต้องการปักหมุดโปรเจกต์"}{" "}
+									<span className="font-semibold text-[var(--foreground)]">"{confirmModalState.projectTitle}"</span>{" "}
+									ใช่หรือไม่?
+								</p>
+							</div>
+						</div>
+
+						<div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[var(--card-border)]">
+							<button
+								type="button"
+								onClick={() => setConfirmModalState((prev) => ({ ...prev, isOpen: false }))}
+								className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--input-bg)] transition-colors cursor-pointer"
+							>
+								ยกเลิก
+							</button>
+							<button
+								type="button"
+								onClick={handleConfirmPinToggle}
+								className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all active:scale-95 cursor-pointer"
+							>
+								ยืนยัน
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</aside>
 	);
 }

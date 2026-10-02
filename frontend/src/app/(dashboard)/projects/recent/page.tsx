@@ -4,15 +4,17 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	Clock,
+	Eye,
 	FolderKanban,
 	Grid,
+	Pin,
 	Plus,
-	Star,
 	Users,
 } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { CreateProjectModal } from "@/components/ui/project/CreateProjectModal";
 import { TopNavbar } from "@/components/ui/TopNavbar";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -22,7 +24,7 @@ interface Project {
 	title: string;
 	description: string;
 	members_count: number;
-	is_starred: boolean;
+	is_pinned?: boolean;
 	last_viewed_at?: string;
 	updated_at: string;
 }
@@ -32,6 +34,34 @@ export default function RecentProjectsPage() {
 	const [projects, setProjects] = useState<Project[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [showCreateModal, setShowCreateModal] = useState(false);
+
+	const formatRelativeTime = (dateStr?: string) => {
+		if (!dateStr) return "";
+		const date = new Date(dateStr);
+		const now = new Date();
+		const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+		if (isNaN(diffInSeconds) || diffInSeconds <= 0) {
+			return "เมื่อสักครู่";
+		}
+
+		const secondsInMinute = 60;
+		const secondsInHour = 3600;
+		const secondsInDay = 86400;
+
+		if (diffInSeconds < secondsInMinute) {
+			return `${diffInSeconds} วินาทีที่แล้ว`;
+		} else if (diffInSeconds < secondsInHour) {
+			const min = Math.floor(diffInSeconds / secondsInMinute);
+			return `${min} นาทีที่แล้ว`;
+		} else if (diffInSeconds < secondsInDay) {
+			const hr = Math.floor(diffInSeconds / secondsInHour);
+			return `${hr} ชั่วโมงที่แล้ว`;
+		} else {
+			const days = Math.floor(diffInSeconds / secondsInDay);
+			return `${days} วันที่แล้ว`;
+		}
+	};
 
 	// Pagination State
 	const [page, setPage] = useState(1);
@@ -68,6 +98,32 @@ export default function RecentProjectsPage() {
 	useEffect(() => {
 		fetchRecentProjects(page, limit);
 	}, [page, limit]);
+
+	const togglePin = async (e: React.MouseEvent, projectId: string) => {
+		e.preventDefault();
+		e.stopPropagation();
+		try {
+			const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+			const res = await fetch(`${apiUrl}/api/projects/${projectId}/pin`, {
+				method: "POST",
+				credentials: "include",
+			});
+			if (res.ok) {
+				const data = await res.json();
+				toast.success(
+					data.is_pinned
+						? t("projects.pinned_success") || "ปักหมุดโปรเจกต์แล้ว"
+						: t("projects.unpinned_success") || "ยกเลิกการปักหมุดแล้ว",
+				);
+				fetchRecentProjects(page, limit);
+				if (typeof window !== "undefined") {
+					window.dispatchEvent(new Event("projects-updated"));
+				}
+			}
+		} catch (err) {
+			console.error("Failed to pin project:", err);
+		}
+	};
 
 	const handleLimitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 		const newLimit = parseInt(e.target.value, 10);
@@ -114,18 +170,7 @@ export default function RecentProjectsPage() {
 				</div>
 
 				{/* Content Area */}
-				{loading && (
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 flex-1">
-						{[1, 2, 3, 4, 5, 6].slice(0, limit).map((i) => (
-							<div
-								key={i}
-								className="h-44 rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] animate-pulse p-5"
-							/>
-						))}
-					</div>
-				)}
-
-				{!loading && projects.length === 0 && (
+				{projects.length === 0 && (
 					<div className="flex flex-col items-center justify-center py-12 px-4 text-center my-auto w-full">
 						<div className="w-12 h-12 rounded-xl bg-[var(--input-bg)] border border-[var(--card-border)] flex items-center justify-center text-[var(--muted-foreground)] mb-3.5 shadow-xs">
 							<FolderKanban className="w-5 h-5 opacity-70" />
@@ -166,11 +211,9 @@ export default function RecentProjectsPage() {
 												<Grid className="h-4 w-4" />
 											</div>
 											<div className="flex items-center gap-2">
-												{project.is_starred && (
-													<Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-												)}
-												<span className="text-[10px] font-medium text-[var(--muted-foreground)] px-2.5 py-1 rounded-full bg-[var(--input-bg)] border border-[var(--card-border)]" title="แก้ไขล่าสุด (Latest edit)">
-													{new Date(project.updated_at).toLocaleDateString()}
+												<span className="inline-flex items-center gap-1 text-[10px] font-medium text-[var(--muted-foreground)] px-2.5 py-1 rounded-full bg-[var(--input-bg)] border border-[var(--card-border)]" title="เปิดล่าสุด (Last viewed)">
+													<Eye className="h-3 w-3 text-[var(--muted-foreground)]" />
+													{formatRelativeTime(project.last_viewed_at || project.updated_at)}
 												</span>
 											</div>
 										</div>

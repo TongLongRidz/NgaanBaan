@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(150) NOT NULL,
     description TEXT,
-    visibility VARCHAR(20) NOT NULL DEFAULT 'team',
+    visibility VARCHAR(30) NOT NULL DEFAULT 'private',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -184,10 +184,11 @@ CREATE TABLE IF NOT EXISTS project_activities (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 14. user_starred_projects
-CREATE TABLE IF NOT EXISTS user_starred_projects (
+-- 14. user_pinned_projects (Pinned / Favorite Projects with custom ordering per user)
+CREATE TABLE IF NOT EXISTS user_pinned_projects (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    position INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, project_id)
 );

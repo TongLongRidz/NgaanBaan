@@ -14,7 +14,7 @@ A **Project** is a collaborative project hub containing multiple views and setti
 - **Gantt Chart**: Interactive timeline & Gantt chart schedule view.
 - **SubNavbar & Navigation**: Sticky sub-navigation bar below `TopNavbar`. Navigation away from `/projects/[uuid]` always resets to the Summary/Overview tab upon return, while page reload (F5 / Cmd+R) preserves the currently selected tab using `sessionStorage`.
 - **Project Info & Description**: Description popup modal triggered from the Info (`Info`) button right next to the project title in `TopNavbar`.
-- **Members & Permissions**: Member role management ('owner', 'editor', 'viewer') and privacy/visibility controls ('team', 'private', 'public'). **Only the project Owner** can modify visibility, kick/remove members, or update member roles (enforced at both frontend UI and backend REST API levels).
+- **Members & Permissions**: Member role management ('owner', 'editor', 'viewer') and privacy/visibility controls ('private', 'specific_people', 'anyone_with_link'). **Only the project Owner** can modify visibility, kick/remove members, or update member roles (enforced at both frontend UI and backend REST API levels).
 
 ---
 
@@ -67,7 +67,7 @@ A **Project** is a collaborative project hub containing multiple views and setti
 ### MongoDB (NoSQL Database for Security Audit Logs & System Events)
 ```text
 [ ngaanbaan_logs Database ]
-   └── [ login_audit_logs Collection ] -> Security tracking (email, ip_address, user_agent, success, reason, created_at)
+   └── [ login_audit_logs Collection ] -> Security tracking (attempted_email, ip_address, user_agent, attempted_round, attempted_time, status, reason, timestamp) [IP-based Rate Limiting: Password field omitted for security]
 ```
 
 ---
@@ -147,7 +147,7 @@ Represents individual collaborative Projects created and managed by users with U
 | `id`         | UUID         | PRIMARY KEY, DEFAULT gen_random_uuid() | Unique identifier (UUID) |
 | `title`      | VARCHAR(150) | NOT NULL                    | Title of the project       |
 | `description`| TEXT         | NULL                        | Project description        |
-| `visibility` | VARCHAR(20)  | NOT NULL DEFAULT 'team'     | Project visibility ('team', 'private', 'public') |
+| `visibility` | VARCHAR(30)  | NOT NULL DEFAULT 'private'  | Project visibility ('private', 'specific_people', 'anyone_with_link') |
 | `created_at` | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Creation timestamp         |
 | `updated_at` | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Last update timestamp      |
 
@@ -315,14 +315,15 @@ Stores project activity audit logs (e.g. task movements, role changes) displayed
 
 ---
 
-### 15. `user_starred_projects` (Project Starred / Favorites) ✅
-Tracks user-specific starred/favorite projects for Quick Navigation in **Starred Projects** page.
+### 15. `user_pinned_projects` (Project Pinned & Custom Ordering) ✅
+Tracks user-specific pinned projects and custom display ordering for each user.
 
 | Column Name  | Type         | Constraints                 | Description                |
 |--------------|--------------|-----------------------------|----------------------------|
 | `user_id`    | UUID         | REFERENCES users(id) ON DELETE CASCADE | Target User ID (UUID)   |
-| `project_id` | UUID         | REFERENCES projects(id) ON DELETE CASCADE | Starred Project ID (UUID)|
-| `created_at` | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Starred timestamp          |
+| `project_id` | UUID         | REFERENCES projects(id) ON DELETE CASCADE | Pinned Project ID (UUID) |
+| `position`   | INT          | NOT NULL DEFAULT 0          | Display order sequence     |
+| `created_at` | TIMESTAMPTZ  | DEFAULT CURRENT_TIMESTAMP   | Pinned timestamp           |
 | PRIMARY KEY  | `(user_id, project_id)` |                 | Composite primary key      |
 
 ---

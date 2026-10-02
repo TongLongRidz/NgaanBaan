@@ -21,8 +21,8 @@ interface ProjectMembersViewProps {
 	projectId?: string;
 	members: ProjectMember[];
 	userRole?: string;
-	projectVisibility?: "team" | "private" | "public";
-	onVisibilityChange?: (visibility: "team" | "private" | "public") => void;
+	projectVisibility?: "private" | "specific_people" | "anyone_with_link";
+	onVisibilityChange?: (visibility: "private" | "specific_people" | "anyone_with_link") => void;
 	onAddMember: (email: string, role: "Owner" | "Editor" | "Viewer") => void;
 	onRoleChange: (memberId: string, role: "Owner" | "Editor" | "Viewer") => void;
 	onRemoveMember: (memberId: string) => void;
@@ -32,7 +32,7 @@ export function ProjectMembersView({
 	projectId,
 	members,
 	userRole,
-	projectVisibility = "team",
+	projectVisibility = "private",
 	onVisibilityChange,
 	onAddMember,
 	onRoleChange,
@@ -195,35 +195,7 @@ export function ProjectMembersView({
 					{t("project.privacy_visibility")}
 				</label>
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<label
-						className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${
-							isCurrentUserOwner ? "cursor-pointer" : "cursor-not-allowed opacity-60"
-						} ${
-							projectVisibility === "team"
-								? "border-indigo-500 bg-indigo-500/5"
-								: "border-[var(--card-border)] bg-[var(--input-bg)] hover:border-indigo-500/30"
-						}`}
-					>
-						<input
-							type="radio"
-							name="visibility"
-							value="team"
-							disabled={!isCurrentUserOwner}
-							checked={projectVisibility === "team"}
-							onChange={() => onVisibilityChange?.("team")}
-							className="text-indigo-600 focus:ring-indigo-500"
-						/>
-						<Users className="h-5 w-5 text-indigo-400 shrink-0" />
-						<div>
-							<h4 className="font-bold text-xs text-[var(--foreground)]">
-								{t("project.team_only")}
-							</h4>
-							<p className="text-[11px] text-[var(--muted-foreground)] mt-0.5">
-								{t("project.team_only_desc")}
-							</p>
-						</div>
-					</label>
-
+					{/* 1. Private */}
 					<label
 						className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${
 							isCurrentUserOwner ? "cursor-pointer" : "cursor-not-allowed opacity-60"
@@ -253,11 +225,12 @@ export function ProjectMembersView({
 						</div>
 					</label>
 
+					{/* 2. Specific People */}
 					<label
 						className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${
 							isCurrentUserOwner ? "cursor-pointer" : "cursor-not-allowed opacity-60"
 						} ${
-							projectVisibility === "public"
+							projectVisibility === "specific_people"
 								? "border-indigo-500 bg-indigo-500/5"
 								: "border-[var(--card-border)] bg-[var(--input-bg)] hover:border-indigo-500/30"
 						}`}
@@ -265,19 +238,49 @@ export function ProjectMembersView({
 						<input
 							type="radio"
 							name="visibility"
-							value="public"
+							value="specific_people"
 							disabled={!isCurrentUserOwner}
-							checked={projectVisibility === "public"}
-							onChange={() => onVisibilityChange?.("public")}
+							checked={projectVisibility === "specific_people"}
+							onChange={() => onVisibilityChange?.("specific_people")}
+							className="text-indigo-600 focus:ring-indigo-500"
+						/>
+						<Users className="h-5 w-5 text-indigo-400 shrink-0" />
+						<div>
+							<h4 className="font-bold text-xs text-[var(--foreground)]">
+								{t("project.specific_people")}
+							</h4>
+							<p className="text-[11px] text-[var(--muted-foreground)] mt-0.5">
+								{t("project.specific_people_desc")}
+							</p>
+						</div>
+					</label>
+
+					{/* 3. Anyone With Link */}
+					<label
+						className={`p-4 rounded-xl border flex items-center gap-3 transition-all ${
+							isCurrentUserOwner ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+						} ${
+							projectVisibility === "anyone_with_link"
+								? "border-indigo-500 bg-indigo-500/5"
+								: "border-[var(--card-border)] bg-[var(--input-bg)] hover:border-indigo-500/30"
+						}`}
+					>
+						<input
+							type="radio"
+							name="visibility"
+							value="anyone_with_link"
+							disabled={!isCurrentUserOwner}
+							checked={projectVisibility === "anyone_with_link"}
+							onChange={() => onVisibilityChange?.("anyone_with_link")}
 							className="text-indigo-600 focus:ring-indigo-500"
 						/>
 						<Globe className="h-5 w-5 text-emerald-400 shrink-0" />
 						<div>
 							<h4 className="font-bold text-xs text-[var(--foreground)]">
-								{t("project.public")}
+								{t("project.anyone_with_link")}
 							</h4>
 							<p className="text-[11px] text-[var(--muted-foreground)] mt-0.5">
-								{t("project.public_desc")}
+								{t("project.anyone_with_link_desc")}
 							</p>
 						</div>
 					</label>

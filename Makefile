@@ -16,8 +16,8 @@ frontend:
 	cd frontend && npm run dev
 
 backend:
-	@echo "Starting Go Backend..."
-	cd backend && go run ./cmd/server
+	@echo "Starting Go Backend with Live Reload..."
+	cd backend && (which air > /dev/null 2>&1 && air || go run ./cmd/server)
 
 db-up:
 	@echo "Starting Database containers (PostgreSQL & MongoDB)..."

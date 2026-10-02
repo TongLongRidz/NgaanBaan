@@ -1,9 +1,10 @@
 "use client";
 
-import { FileText, Globe, Info, LogOut, Moon, Plus, Settings, Sun, User, X } from "lucide-react";
+import { FileText, Globe, Info, LogOut, Moon, MoreHorizontal, Pin, Plus, Settings, Sun, User, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
+import { toast } from "sonner";
 import { showConfirm } from "@/components/ui/notification/sweetalert/sweetalert";
 import { CreateProjectModal } from "@/components/ui/project/CreateProjectModal";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -19,13 +20,56 @@ interface TopNavbarProps {
 	activeTab?: ProjectSubTab;
 	setActiveTab?: (tab: ProjectSubTab) => void;
 	userRole?: string;
+	projectId?: string;
+	isPinned?: boolean;
+	onTogglePin?: () => void;
 }
 
-export function TopNavbar({ title, description, activeTab, setActiveTab, userRole }: TopNavbarProps) {
+export function TopNavbar({ title, description, activeTab, setActiveTab, userRole, projectId, isPinned, onTogglePin }: TopNavbarProps) {
 	const router = useRouter();
 	const { theme, toggleTheme } = useTheme();
 	const { language, toggleLanguage, t } = useLanguage();
 	const isDark = theme === "dark";
+
+	const [showKebabMenu, setShowKebabMenu] = useState(false);
+	const [currentPinned, setCurrentPinned] = useState<boolean>(isPinned || false);
+
+	React.useEffect(() => {
+		if (isPinned !== undefined) {
+			setCurrentPinned(isPinned);
+		}
+	}, [isPinned]);
+
+	const handlePinToggle = async () => {
+		setShowKebabMenu(false);
+		if (onTogglePin) {
+			onTogglePin();
+			return;
+		}
+		if (!projectId) return;
+
+		try {
+			const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+			const res = await fetch(`${apiUrl}/api/projects/${projectId}/pin`, {
+				method: "POST",
+				credentials: "include",
+			});
+			if (res.ok) {
+				const data = await res.json();
+				setCurrentPinned(data.is_pinned);
+				toast.success(
+					data.is_pinned
+						? t("projects.pinned_success") || "ปักหมุดโปรเจกต์แล้ว"
+						: t("projects.unpinned_success") || "ยกเลิกการปักหมุดแล้ว",
+				);
+				if (typeof window !== "undefined") {
+					window.dispatchEvent(new Event("projects-updated"));
+				}
+			}
+		} catch (err) {
+			console.error("Failed to toggle pin:", err);
+		}
+	};
 
 	const [userProfile, setUserProfile] = useState<{
 		firstname: string;
@@ -39,16 +83,8 @@ export function TopNavbar({ title, description, activeTab, setActiveTab, userRol
 	type UserStatus = "active" | "away" | "offline";
 	const [userStatus, setUserStatus] = useState<UserStatus>("active");
 
-	React.useEffect(() => {
-		const savedStatus = localStorage.getItem("user_status") as UserStatus;
-		if (savedStatus && ["active", "away", "offline"].includes(savedStatus)) {
-			setUserStatus(savedStatus);
-		}
-	}, []);
-
 	const handleStatusChange = async (status: UserStatus) => {
 		setUserStatus(status);
-		localStorage.setItem("user_status", status);
 
 		try {
 			const apiUrl =
@@ -186,6 +222,41 @@ export function TopNavbar({ title, description, activeTab, setActiveTab, userRol
 									<Info className="h-4 w-4" />
 								</button>
 							)}
+
+							{/* Horizontal Kebab Menu (...) */}
+							<div
+								className="relative"
+								onMouseLeave={() => setShowKebabMenu(false)}
+							>
+								<button
+									onClick={() => setShowKebabMenu(!showKebabMenu)}
+									className="p-1 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--card-border)]/20 transition-all cursor-pointer"
+									title="ตัวเลือกเพิ่มเติม (More options)"
+								>
+									<MoreHorizontal className="h-4 w-4" />
+								</button>
+
+								{showKebabMenu && (
+									<>
+										<div
+											className="fixed inset-0 z-[9998]"
+											onClick={() => setShowKebabMenu(false)}
+										/>
+										<div
+											className="absolute left-0 mt-2 w-48 rounded-xl border border-[var(--popover-border)] bg-[var(--popover-bg)] text-[var(--foreground)] shadow-xl p-1.5 z-[9999] animate-in fade-in duration-150"
+											onMouseLeave={() => setShowKebabMenu(false)}
+										>
+											<button
+												onClick={handlePinToggle}
+												className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium hover:bg-[var(--input-bg)] transition-colors text-left"
+											>
+												<Pin className={`h-4 w-4 ${currentPinned ? "fill-blue-500 text-blue-500" : "text-[var(--muted-foreground)]"}`} />
+												<span>{currentPinned ? "ยกเลิกการปักหมุด" : "ปักหมุดโปรเจกต์"}</span>
+											</button>
+										</div>
+									</>
+								)}
+							</div>
 						</div>
 					)}
 				</div>

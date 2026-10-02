@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Footer } from "@/components/ui/Footer";
 import { LandingNavbar } from "@/components/ui/LandingNavbar";
+import { ScrollToTop } from "@/components/ui/ScrollToTop";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -36,7 +37,7 @@ export default function MainPage() {
 				credentials: "include",
 			});
 			if (res.ok) {
-				router.push("/projects");
+				router.push("/home");
 			} else {
 				router.push("/login");
 			}
@@ -60,10 +61,7 @@ export default function MainPage() {
 	}, [language]);
 
 	return (
-		<div
-			key={language}
-			className="min-h-screen flex flex-col font-sans bg-[var(--background)] text-[var(--foreground)]"
-		>
+		<div className="min-h-screen flex flex-col font-sans bg-[var(--background)] text-[var(--foreground)]">
 			{/* Navigation Bar */}
 			<LandingNavbar />
 
@@ -392,6 +390,9 @@ export default function MainPage() {
 					</div>
 				</section>
 			</div>
+
+			{/* Scroll To Top Floating Button */}
+			<ScrollToTop />
 
 			{/* Footer */}
 			<Footer />

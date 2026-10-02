@@ -23,8 +23,6 @@ func AuthMiddleware() gin.HandlerFunc {
 		if tokenStr == "" {
 			if cookieToken, err := c.Cookie("refresh_token"); err == nil && cookieToken != "" {
 				tokenStr = cookieToken
-			} else if cookieToken, err := c.Cookie("user_session_id"); err == nil && cookieToken != "" {
-				tokenStr = cookieToken
 			}
 		}
 
@@ -114,7 +112,7 @@ func Login(c *gin.Context) {
 	ipAddress := c.ClientIP()
 	userAgent := c.GetHeader("User-Agent")
 
-	if remainingSec, err := repository.CheckLoginRateLimit(req.Email); err != nil {
+	if remainingSec, err := repository.CheckLoginRateLimit(ipAddress); err != nil {
 		c.JSON(http.StatusTooManyRequests, gin.H{
 			"error":        err.Error(),
 			"locked_until": remainingSec,
@@ -124,10 +122,10 @@ func Login(c *gin.Context) {
 
 	user, _, err := repository.LoginUser(req.Email, req.Password)
 	if err != nil {
-		round, count, _ := repository.RecordLoginAttempt(req.Email, req.Password, ipAddress, userAgent, false, err.Error())
+		round, count, _ := repository.RecordLoginAttempt(req.Email, ipAddress, userAgent, false, err.Error())
 		msg := err.Error()
 		if count >= 5 {
-			msg = "Tried 5 times incorrectly. Account locked for 30 seconds."
+			msg = "Tried 5 times incorrectly from this IP. Blocked for 30 seconds."
 		}
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error":  msg,
@@ -137,7 +135,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	repository.RecordLoginAttempt(req.Email, req.Password, ipAddress, userAgent, true, "Login successful")
+	repository.RecordLoginAttempt(req.Email, ipAddress, userAgent, true, "Login successful")
 
 	accessToken, expiresIn, err := service.GenerateAccessToken(user.ID, user.Email)
 	if err != nil {
@@ -148,9 +146,9 @@ func Login(c *gin.Context) {
 	var otp, token string
 
 	if (user.IsEmailVerified) {
-		plainRefreshToken, _ := repository.CreateRefreshToken(user.ID)
-		c.SetCookie("refresh_token", plainRefreshToken, 60*60*24*7, "/api/auth", "", false, true)
-		c.SetCookie("user_session_id", plainRefreshToken, 60*60*24*7, "/", "", false, true)
+		plainRefreshToken, _ := repository.CreateRefreshToken(user.ID, userAgent, ipAddress)
+		c.SetCookie("refresh_token", "", -1, "/api/auth", "", false, true)
+		c.SetCookie("refresh_token", plainRefreshToken, 60*60*24*7, "/", "", false, true)
 	} else {
 		otp, token, _ = repository.CreateVerificationCode(user.ID)
 	}
@@ -167,28 +165,28 @@ func Login(c *gin.Context) {
 
 func RefreshToken(c *gin.Context) {
 	plainRefreshToken, err := c.Cookie("refresh_token")
-	if err != nil || plainRefreshToken == "" {
-		plainRefreshToken, err = c.Cookie("user_session_id")
-	}
 
 	if err != nil || plainRefreshToken == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Refresh token cookie required"})
 		return
 	}
 
-	newPlainToken, userID, rotateErr := repository.RotateRefreshToken(plainRefreshToken)
+	ipAddress := c.ClientIP()
+	userAgent := c.GetHeader("User-Agent")
+
+	newPlainToken, userID, rotateErr := repository.RotateRefreshToken(plainRefreshToken, userAgent, ipAddress)
 	if rotateErr != nil {
 		if rotateErr.Error() == "REUSE_DETECTED" {
-			c.SetCookie("refresh_token", "", -1, "/api/auth", "", false, true)
-			c.SetCookie("user_session_id", "", -1, "/", "", false, true)
+			c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+			c.SetCookie("user_session_id", "", -1, "/", "", false, true) // Clear legacy cookie if present
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "Security alert: Refresh token reuse detected. All active sessions have been revoked.",
 			})
 			return
 		}
 
-		c.SetCookie("refresh_token", "", -1, "/api/auth", "", false, true)
-		c.SetCookie("user_session_id", "", -1, "/", "", false, true)
+		c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+		c.SetCookie("user_session_id", "", -1, "/", "", false, true) // Clear legacy cookie if present
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired refresh token"})
 		return
 	}
@@ -205,8 +203,7 @@ func RefreshToken(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("refresh_token", newPlainToken, 60*60*24*7, "/api/auth", "", false, true)
-	c.SetCookie("user_session_id", newPlainToken, 60*60*24*7, "/", "", false, true)
+	c.SetCookie("refresh_token", newPlainToken, 60*60*24*7, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"access_token": newAccessToken,
@@ -223,20 +220,14 @@ func Logout(c *gin.Context) {
 		}
 		_ = repository.RevokeRefreshToken(plainToken)
 	}
-	if plainToken, err := c.Cookie("user_session_id"); err == nil && plainToken != "" {
-		if user, err := repository.ValidateUserSession(plainToken); err == nil {
-			_ = repository.UpdateUserStatus(user.ID, "offline")
-		}
-		_ = repository.RevokeRefreshToken(plainToken)
-	}
 	if userVal, exists := c.Get("user"); exists {
 		if user, ok := userVal.(*model.User); ok {
 			_ = repository.UpdateUserStatus(user.ID, "offline")
 		}
 	}
 
+	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
 	c.SetCookie("refresh_token", "", -1, "/api/auth", "", false, true)
-	c.SetCookie("user_session_id", "", -1, "/", "", false, true)
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
 
@@ -256,22 +247,21 @@ func VerifyOTP(c *gin.Context) {
 	userAgent := c.GetHeader("User-Agent")
 
 	if err := repository.VerifyOTPCode(user.ID, req.OTPCode); err != nil {
-		repository.RecordLoginAttempt(user.Email, "", ipAddress, userAgent, false, "OTP verification failed: "+err.Error())
+		repository.RecordLoginAttempt(user.Email, ipAddress, userAgent, false, "OTP verification failed: "+err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	user.IsEmailVerified = true
 
-	// Issue user_session cookies ONLY now when user is fully verified
-	plainRefreshToken, _ := repository.CreateRefreshToken(user.ID)
-	c.SetCookie("refresh_token", plainRefreshToken, 60*60*24*7, "/api/auth", "", false, true)
-	c.SetCookie("user_session_id", plainRefreshToken, 60*60*24*7, "/", "", false, true)
+	// Issue refresh_token cookie ONLY now when user is fully verified
+	plainRefreshToken, _ := repository.CreateRefreshToken(user.ID, userAgent, ipAddress)
+	c.SetCookie("refresh_token", plainRefreshToken, 60*60*24*7, "/", "", false, true)
 
 	newAccessToken, expiresIn, _ := service.GenerateAccessToken(user.ID, user.Email)
 
 	// MongoDB Audit Logs (Both login_audit_logs and email_verification_logs)
-	repository.RecordLoginAttempt(user.Email, "", ipAddress, userAgent, true, "OTP verification & login successful")
+	repository.RecordLoginAttempt(user.Email, ipAddress, userAgent, true, "OTP verification & login successful")
 	go repository.RecordEmailVerificationLog(user.ID, user.Email, "otp", ipAddress, userAgent)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -299,15 +289,14 @@ func VerifyTokenLink(c *gin.Context) {
 		return
 	}
 
-	// Issue user_session cookies ONLY now when user is fully verified via link
-	plainRefreshToken, _ := repository.CreateRefreshToken(user.ID)
-	c.SetCookie("refresh_token", plainRefreshToken, 60*60*24*7, "/api/auth", "", false, true)
-	c.SetCookie("user_session_id", plainRefreshToken, 60*60*24*7, "/", "", false, true)
+	// Issue refresh_token cookie ONLY now when user is fully verified via link
+	plainRefreshToken, _ := repository.CreateRefreshToken(user.ID, userAgent, ipAddress)
+	c.SetCookie("refresh_token", plainRefreshToken, 60*60*24*7, "/", "", false, true)
 
 	newAccessToken, expiresIn, _ := service.GenerateAccessToken(user.ID, user.Email)
 
 	// MongoDB Audit Logs (Both login_audit_logs and email_verification_logs)
-	repository.RecordLoginAttempt(user.Email, "", ipAddress, userAgent, true, "Email link verification & login successful")
+	repository.RecordLoginAttempt(user.Email, ipAddress, userAgent, true, "Email link verification & login successful")
 	go repository.RecordEmailVerificationLog(user.ID, user.Email, "link", ipAddress, userAgent)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -560,11 +549,11 @@ func ToggleSubtask(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
-func GetStarredProjects(c *gin.Context) {
+func GetPinnedProjects(c *gin.Context) {
 	userVal, _ := c.Get("user")
 	user := userVal.(*model.User)
 
-	projects, err := repository.GetStarredProjects(user.ID)
+	projects, err := repository.GetPinnedProjects(user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -572,17 +561,17 @@ func GetStarredProjects(c *gin.Context) {
 	c.JSON(http.StatusOK, projects)
 }
 
-func ToggleStarProject(c *gin.Context) {
+func TogglePinProject(c *gin.Context) {
 	projectID := c.Param("id")
 	userVal, _ := c.Get("user")
 	user := userVal.(*model.User)
 
-	isStarred, err := repository.ToggleStarProject(user.ID, projectID)
+	isPinned, err := repository.TogglePinProject(user.ID, projectID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"is_starred": isStarred})
+	c.JSON(http.StatusOK, gin.H{"is_pinned": isPinned})
 }
 
 func SendTestEmail(c *gin.Context) {
@@ -711,7 +700,7 @@ func UpdateProjectVisibility(c *gin.Context) {
 		return
 	}
 
-	if req.Visibility != "team" && req.Visibility != "private" && req.Visibility != "public" {
+	if req.Visibility != "private" && req.Visibility != "specific_people" && req.Visibility != "anyone_with_link" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid visibility option"})
 		return
 	}
@@ -798,6 +787,48 @@ func UpdateUserStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "success", "user_status": req.Status})
+}
+
+func GetMyTasks(c *gin.Context) {
+	userVal, _ := c.Get("user")
+	user := userVal.(*model.User)
+
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page := 1
+	limit := 10
+	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+		page = p
+	}
+	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+		limit = l
+	}
+
+	tasks, total, err := repository.GetUserAssignedTasks(user.ID, page, limit)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"tasks":       []model.MyTaskItem{},
+			"total":       0,
+			"page":        page,
+			"limit":       limit,
+			"total_pages": 1,
+		})
+		return
+	}
+
+	totalPages := (total + limit - 1) / limit
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"tasks":       tasks,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+		"total_pages": totalPages,
+	})
 }
 
 

@@ -13,11 +13,14 @@ func GetUserProjects(userID string) ([]model.Project, error) {
 		SELECT p.id, p.title, COALESCE(p.description, ''),
 		       CASE WHEN LOWER(pm.role) = 'owner' THEN 'Owner' WHEN LOWER(pm.role) = 'editor' THEN 'Editor' ELSE 'Viewer' END AS role,
 		       p.created_at, p.updated_at,
-		       (SELECT COUNT(*) FROM project_members pm2 WHERE pm2.project_id = p.id) AS members_count
+		       (SELECT v.viewed_at FROM user_project_views v WHERE v.user_id = $1 AND v.project_id = p.id ORDER BY v.viewed_at DESC LIMIT 1) AS last_viewed_at,
+		       (SELECT COUNT(*) FROM project_members pm2 WHERE pm2.project_id = p.id) AS members_count,
+		       EXISTS(SELECT 1 FROM user_pinned_projects upp WHERE upp.user_id = $1 AND upp.project_id = p.id) AS is_pinned,
+		       COALESCE((SELECT upp.position FROM user_pinned_projects upp WHERE upp.user_id = $1 AND upp.project_id = p.id), 0) AS pin_position
 		FROM projects p
 		JOIN project_members pm ON p.id = pm.project_id
 		WHERE pm.user_id = $1
-		ORDER BY p.updated_at DESC
+		ORDER BY is_pinned DESC, pin_position ASC, p.updated_at DESC
 	`
 	rows, err := DB.Query(query, userID)
 	if err != nil {
@@ -28,7 +31,7 @@ func GetUserProjects(userID string) ([]model.Project, error) {
 	projects := []model.Project{}
 	for rows.Next() {
 		var p model.Project
-		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.Role, &p.CreatedAt, &p.UpdatedAt, &p.MembersCount); err != nil {
+		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.Role, &p.CreatedAt, &p.UpdatedAt, &p.LastViewedAt, &p.MembersCount, &p.IsPinned, &p.PinPosition); err != nil {
 			return nil, err
 		}
 		projects = append(projects, p)
@@ -101,7 +104,7 @@ func GetProjectByID(id string) (*model.Project, error) {
 func GetUserProjectByID(projectID, userID string) (*model.Project, error) {
 	var p model.Project
 	query := `
-		SELECT p.id, p.title, COALESCE(p.description, ''), COALESCE(p.visibility, 'team'),
+		SELECT p.id, p.title, COALESCE(p.description, ''), COALESCE(p.visibility, 'private'),
 		       CASE WHEN LOWER(pm.role) = 'owner' THEN 'Owner' WHEN LOWER(pm.role) = 'editor' THEN 'Editor' ELSE 'Viewer' END AS role,
 		       p.created_at, p.updated_at,
 		       (SELECT COUNT(*) FROM project_members pm2 WHERE pm2.project_id = p.id) AS members_count
@@ -386,14 +389,15 @@ func ToggleSubtask(subtaskID string) error {
 	return err
 }
 
-func GetStarredProjects(userID string) ([]model.Project, error) {
+func GetPinnedProjects(userID string) ([]model.Project, error) {
 	query := `
 		SELECT p.id, p.title, COALESCE(p.description, ''), p.created_at, p.updated_at,
-		       (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id) AS members_count
-		FROM user_starred_projects usp
-		JOIN projects p ON usp.project_id = p.id
-		WHERE usp.user_id = $1
-		ORDER BY usp.created_at DESC
+		       (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id) AS members_count,
+		       upp.position
+		FROM user_pinned_projects upp
+		JOIN projects p ON upp.project_id = p.id
+		WHERE upp.user_id = $1
+		ORDER BY upp.position ASC, upp.created_at DESC
 	`
 	rows, err := DB.Query(query, userID)
 	if err != nil {
@@ -404,30 +408,34 @@ func GetStarredProjects(userID string) ([]model.Project, error) {
 	projects := []model.Project{}
 	for rows.Next() {
 		var p model.Project
-		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.CreatedAt, &p.UpdatedAt, &p.MembersCount); err != nil {
+		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.CreatedAt, &p.UpdatedAt, &p.MembersCount, &p.PinPosition); err != nil {
 			return nil, err
 		}
-		p.IsStarred = true
+		p.IsPinned = true
 		projects = append(projects, p)
 	}
 	return projects, nil
 }
 
-func ToggleStarProject(userID, projectID string) (bool, error) {
+func TogglePinProject(userID, projectID string) (bool, error) {
 	var exists bool
-	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_starred_projects WHERE user_id = $1 AND project_id = $2)`
+	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_pinned_projects WHERE user_id = $1 AND project_id = $2)`
 	err := DB.QueryRow(checkQuery, userID, projectID).Scan(&exists)
 	if err != nil {
 		return false, err
 	}
 
 	if exists {
-		deleteQuery := `DELETE FROM user_starred_projects WHERE user_id = $1 AND project_id = $2`
+		deleteQuery := `DELETE FROM user_pinned_projects WHERE user_id = $1 AND project_id = $2`
 		_, err = DB.Exec(deleteQuery, userID, projectID)
 		return false, err
 	} else {
-		insertQuery := `INSERT INTO user_starred_projects (user_id, project_id) VALUES ($1, $2)`
-		_, err = DB.Exec(insertQuery, userID, projectID)
+		var nextPos int
+		posQuery := `SELECT COALESCE(MAX(position), 0) + 1 FROM user_pinned_projects WHERE user_id = $1`
+		_ = DB.QueryRow(posQuery, userID).Scan(&nextPos)
+
+		insertQuery := `INSERT INTO user_pinned_projects (user_id, project_id, position) VALUES ($1, $2, $3)`
+		_, err = DB.Exec(insertQuery, userID, projectID, nextPos)
 		return true, err
 	}
 }
@@ -533,7 +541,8 @@ func GetUserRecentProjects(userID string, page, limit int) ([]model.Project, int
 	query := `
 		SELECT p.id, p.title, COALESCE(p.description, ''), p.created_at, p.updated_at, v.viewed_at,
 		       (SELECT COUNT(*) FROM project_members pm2 WHERE pm2.project_id = p.id) AS members_count,
-		       EXISTS(SELECT 1 FROM user_starred_projects usp WHERE usp.user_id = $1 AND usp.project_id = p.id) AS is_starred
+		       EXISTS(SELECT 1 FROM user_pinned_projects upp WHERE upp.user_id = $1 AND upp.project_id = p.id) AS is_pinned,
+		       COALESCE((SELECT upp.position FROM user_pinned_projects upp WHERE upp.user_id = $1 AND upp.project_id = p.id), 0) AS pin_position
 		FROM user_project_views v
 		JOIN projects p ON v.project_id = p.id
 		JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = $1
@@ -550,12 +559,63 @@ func GetUserRecentProjects(userID string, page, limit int) ([]model.Project, int
 	projects := []model.Project{}
 	for rows.Next() {
 		var p model.Project
-		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.CreatedAt, &p.UpdatedAt, &p.LastViewedAt, &p.MembersCount, &p.IsStarred); err != nil {
+		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.CreatedAt, &p.UpdatedAt, &p.LastViewedAt, &p.MembersCount, &p.IsPinned, &p.PinPosition); err != nil {
 			return nil, 0, err
 		}
 		projects = append(projects, p)
 	}
 
 	return projects, total, nil
+}
+
+func GetUserAssignedTasks(userID string, page, limit int) ([]model.MyTaskItem, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+	offset := (page - 1) * limit
+
+	countQuery := `
+		SELECT COUNT(*)
+		FROM tasks t
+		JOIN columns c ON t.column_id = c.id
+		JOIN projects p ON c.project_id = p.id
+		LEFT JOIN task_assignees ta ON t.id = ta.task_id
+		WHERE ta.user_id = $1
+	`
+	var total int
+	err := DB.QueryRow(countQuery, userID).Scan(&total)
+	if err != nil {
+		return []model.MyTaskItem{}, 0, nil
+	}
+
+	query := `
+		SELECT t.id, t.title, COALESCE(t.description, ''), t.priority,
+		       (c.name = 'Done' OR c.name_en = 'Done' OR c.name_th = 'เสร็จสิ้น') AS is_completed,
+		       p.id AS board_id, p.title AS board_name, t.due_date, t.created_at
+		FROM tasks t
+		JOIN columns c ON t.column_id = c.id
+		JOIN projects p ON c.project_id = p.id
+		LEFT JOIN task_assignees ta ON t.id = ta.task_id
+		WHERE ta.user_id = $1
+		ORDER BY t.created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+	rows, err := DB.Query(query, userID, limit, offset)
+	if err != nil {
+		return []model.MyTaskItem{}, 0, nil
+	}
+	defer rows.Close()
+
+	tasks := []model.MyTaskItem{}
+	for rows.Next() {
+		var item model.MyTaskItem
+		if err := rows.Scan(&item.ID, &item.Title, &item.Description, &item.Priority, &item.IsCompleted, &item.BoardID, &item.BoardName, &item.DueDate, &item.CreatedAt); err == nil {
+			tasks = append(tasks, item)
+		}
+	}
+	return tasks, total, nil
 }
 

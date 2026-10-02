@@ -33,8 +33,9 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
 	const [members, setMembers] = useState<ProjectMember[]>([]);
 	const [projectTitle, setProjectTitle] = useState("");
 	const [projectDescription, setProjectDescription] = useState("");
+	const [isPinned, setIsPinned] = useState<boolean>(false);
 	const [userRole, setUserRole] = useState<string>("Owner");
-	const [projectVisibility, setProjectVisibility] = useState<"team" | "private" | "public">("team");
+	const [projectVisibility, setProjectVisibility] = useState<"private" | "specific_people" | "anyone_with_link">("private");
 	const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 	const [loading, setLoading] = useState(true);
 
@@ -54,6 +55,9 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
 					if (data.project) {
 						setProjectTitle(data.project.title);
 						setProjectDescription(data.project.description);
+						if (data.project.is_pinned !== undefined) {
+							setIsPinned(data.project.is_pinned);
+						}
 						if (data.project.visibility) {
 							setProjectVisibility(data.project.visibility as any);
 						}
@@ -231,7 +235,7 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
 		}
 	};
 
-	const handleVisibilityChange = async (newVisibility: "team" | "private" | "public") => {
+	const handleVisibilityChange = async (newVisibility: "private" | "specific_people" | "anyone_with_link") => {
 		setProjectVisibility(newVisibility);
 		try {
 			const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -270,7 +274,7 @@ function ProjectDetailContent({ params }: { params: Promise<{ id: string }> }) {
 
 	return (
 		<>
-			<TopNavbar title={projectTitle} description={projectDescription} />
+			<TopNavbar title={projectTitle} description={projectDescription} projectId={projectId} isPinned={isPinned} />
 
 			{/* Project Sub Tabs Navigation Row */}
 			<ProjectSubNavbar

@@ -5,6 +5,8 @@ const MySwal = withReactContent(Swal);
 
 // Custom styled SweetAlert2 instances
 const customSwal = MySwal.mixin({
+	heightAuto: false,
+	scrollbarPadding: false,
 	customClass: {
 		popup:
 			"rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-6 font-sans",
@@ -12,11 +14,11 @@ const customSwal = MySwal.mixin({
 		htmlContainer:
 			"text-xs font-medium text-slate-600 dark:text-slate-400 mb-4",
 		confirmButton:
-			"px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900 transition-all shadow-md mx-1",
+			"px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-all shadow-md mx-1 cursor-pointer",
 		cancelButton:
-			"px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all mx-1",
+			"px-4 py-2 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-800 transition-all mx-1 cursor-pointer",
 		denyButton:
-			"px-4 py-2 rounded-xl text-xs font-semibold bg-rose-500 hover:bg-rose-600 text-white transition-all mx-1",
+			"px-4 py-2 rounded-xl text-xs font-semibold bg-rose-500 hover:bg-rose-600 text-white transition-all mx-1 cursor-pointer",
 	},
 	buttonsStyling: false,
 });

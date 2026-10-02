@@ -241,7 +241,7 @@ export const AnimatedThemeToggler = ({
 				onThemeChange?.(newTheme ? "dark" : "light");
 			} else {
 				setInternalIsDark(newTheme);
-				localStorage.setItem("theme", newTheme ? "dark" : "light");
+				document.cookie = `theme=${newTheme ? "dark" : "light"}; path=/; max-age=31536000; SameSite=Lax`;
 			}
 		};
 

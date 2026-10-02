@@ -100,11 +100,43 @@ function UnifiedAuthForm() {
 	const [lockoutTimer, setLockoutTimer] = useState(0);
 	const [loading, setLoading] = useState(false);
 
-	// Auto verify if token query param exists
+	// Auto verify if token query param exists or redirect to /home if already logged in
 	useEffect(() => {
+		const checkLoggedIn = async () => {
+			try {
+				const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+				
+				// Try fetching user session
+				let res = await fetch(`${apiUrl}/api/auth/me`, { credentials: "include" });
+				
+				// If 401, attempt refreshing session token
+				if (!res.ok) {
+					const refreshRes = await fetch(`${apiUrl}/api/auth/refresh`, {
+						method: "POST",
+						credentials: "include",
+					});
+					if (refreshRes.ok) {
+						res = await fetch(`${apiUrl}/api/auth/me`, { credentials: "include" });
+					}
+				}
+
+				if (res.ok) {
+					const userData = await res.json();
+					// Get user object if response has user wrapper or is direct user object
+					const userObj = userData.user || userData;
+					if (userObj && userObj.is_email_verified) {
+						router.replace("/home");
+						return;
+					}
+				}
+			} catch (_) {}
+		};
+
 		const tokenParam = searchParams.get("token");
 		if (tokenParam) {
 			handleVerifyByTokenParam(tokenParam);
+		} else {
+			checkLoggedIn();
 		}
 	}, [searchParams]);
 
@@ -459,6 +491,56 @@ function UnifiedAuthForm() {
 			router.push("/home");
 		} catch (err: any) {
 			setErrorKey({ key: "auth.invalid_credentials" });
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const handleBypassVerification = async () => {
+		setLoading(true);
+		try {
+			// If we have devOtpCode, use it directly to verify
+			let codeToUse = devOtpCode;
+			if (!codeToUse) {
+				// Otherwise fetch a fresh OTP from resend endpoint
+				const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+				const headers: Record<string, string> = {};
+				if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+				const res = await fetch(`${apiUrl}/api/auth/resend-otp`, {
+					method: "POST",
+					headers,
+					credentials: "include",
+				});
+				const data = await res.json();
+				codeToUse = data.otp_code;
+			}
+
+			if (codeToUse) {
+				const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+				const headers: Record<string, string> = { "Content-Type": "application/json" };
+				if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+				const res = await fetch(`${apiUrl}/api/auth/verify-otp`, {
+					method: "POST",
+					headers,
+					credentials: "include",
+					body: JSON.stringify({ otp_code: codeToUse }),
+				});
+				if (res.ok) {
+					await showAlert({
+						title: "Dev Bypass: ยืนยันอีเมลเรียบร้อยแล้ว!",
+						icon: "success",
+						timer: 1200,
+						showConfirmButton: false,
+					});
+					router.push("/home");
+					return;
+				}
+			}
+
+			// Fallback: If verification request failed or no code, navigate to home directly if session exists
+			router.push("/home");
+		} catch (err: any) {
+			router.push("/home");
 		} finally {
 			setLoading(false);
 		}
@@ -1076,6 +1158,7 @@ function UnifiedAuthForm() {
 							onVerifyOtp={handleVerifyOTP}
 							onResendOtp={handleResendOTP}
 							onBackToLogin={() => switchMode("login")}
+							onBypass={handleBypassVerification}
 						/>
 					) : null}
 

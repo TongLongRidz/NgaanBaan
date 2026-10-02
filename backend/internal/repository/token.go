@@ -26,7 +26,7 @@ func GenerateRandomToken() (string, error) {
 }
 
 // CreateRefreshToken creates a new plain refresh token, hashes it, and stores the hash in user_sessions DB table
-func CreateRefreshToken(userID string) (string, error) {
+func CreateRefreshToken(userID string, userAgent string, ipAddress string) (string, error) {
 	plainToken, err := GenerateRandomToken()
 	if err != nil {
 		return "", err
@@ -36,10 +36,10 @@ func CreateRefreshToken(userID string) (string, error) {
 	expiresAt := time.Now().Add(7 * 24 * time.Hour) // 7 days expiration
 
 	query := `
-		INSERT INTO user_sessions (user_id, refresh_token_hash, expires_at)
-		VALUES ($1, $2, $3)
+		INSERT INTO user_sessions (user_id, refresh_token_hash, user_agent, ip_address, expires_at)
+		VALUES ($1, $2, $3, $4, $5)
 	`
-	_, err = DB.Exec(query, userID, tokenHash, expiresAt)
+	_, err = DB.Exec(query, userID, tokenHash, userAgent, ipAddress, expiresAt)
 	if err != nil {
 		return "", err
 	}
@@ -49,7 +49,7 @@ func CreateRefreshToken(userID string) (string, error) {
 
 // RotateRefreshToken performs Token Rotation & Reuse Detection on user_sessions table
 // If a revoked token is presented, Reuse Detection triggers and revokes ALL active sessions/tokens for that user!
-func RotateRefreshToken(plainToken string) (newPlainToken string, userID string, err error) {
+func RotateRefreshToken(plainToken string, userAgent string, ipAddress string) (newPlainToken string, userID string, err error) {
 	tokenHash := HashToken(plainToken)
 
 	var tokenID string
@@ -89,7 +89,7 @@ func RotateRefreshToken(plainToken string) (newPlainToken string, userID string,
 	}
 
 	// ISSUE NEW PLAIN REFRESH TOKEN & SAVE NEW HASH (Rotation)
-	newPlainToken, err = CreateRefreshToken(uID)
+	newPlainToken, err = CreateRefreshToken(uID, userAgent, ipAddress)
 	if err != nil {
 		return "", uID, err
 	}

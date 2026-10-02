@@ -36,29 +36,27 @@ const DateTimeFormatContext = createContext<DateTimeFormatContextType | undefine
 	undefined
 );
 
-const STORAGE_KEY = "display_datetime_settings";
+function getInitialDateTimeSettings(): DateTimeFormatSettings {
+	if (typeof window !== "undefined") {
+		try {
+			const cookieMatch = document.cookie.match(/(?:^|; )display_datetime_settings=([^;]*)/);
+			if (cookieMatch) {
+				const decoded = decodeURIComponent(cookieMatch[1]);
+				return { ...defaultSettings, ...JSON.parse(decoded) };
+			}
+		} catch (_) {}
+	}
+	return defaultSettings;
+}
 
 export function DateTimeFormatProvider({ children }: { children: React.ReactNode }) {
-	const [settings, setSettings] = useState<DateTimeFormatSettings>(defaultSettings);
-
-	useEffect(() => {
-		if (typeof window !== "undefined") {
-			try {
-				const saved = localStorage.getItem(STORAGE_KEY);
-				if (saved) {
-					setSettings((prev) => ({ ...prev, ...JSON.parse(saved) }));
-				}
-			} catch (e) {
-				console.error("Failed to load datetime settings from localStorage:", e);
-			}
-		}
-	}, []);
+	const [settings, setSettings] = useState<DateTimeFormatSettings>(getInitialDateTimeSettings);
 
 	const updateSettings = (newSettings: Partial<DateTimeFormatSettings>) => {
 		setSettings((prev) => {
 			const updated = { ...prev, ...newSettings };
 			if (typeof window !== "undefined") {
-				localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+				document.cookie = `display_datetime_settings=${encodeURIComponent(JSON.stringify(updated))}; path=/; max-age=31536000; SameSite=Lax`;
 			}
 			return updated;
 		});
